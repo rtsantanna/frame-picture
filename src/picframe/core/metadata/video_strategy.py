@@ -206,9 +206,17 @@ class VideoMetadataStrategy(IMetadataStrategy):
                     background: Any = None
                     matting_config: Any = None
                     edge_config: Any = None
+                    video_scaling: str = "margin"
+                    video_margin_pct: float = 6.0
                     if self._config_repository is not None:
                         fit_display = self._config_repository.get_app_config_bool(
                             "viewer.video_fit_display", False
+                        )
+                        video_scaling = self._config_repository.get_app_config(
+                            "viewer.video_scaling", "margin"
+                        )
+                        video_margin_pct = self._config_repository.get_app_config(
+                            "viewer.video_margin_pct", 6.0
                         )
                         background = self._config_repository.get_app_config(
                             "viewer.background", None
@@ -259,6 +267,8 @@ class VideoMetadataStrategy(IMetadataStrategy):
                     frame_cache_kwargs: dict[str, Any] = {}
                     if fit_display:
                         frame_cache_kwargs["fit_display"] = fit_display
+                    frame_cache_kwargs["video_scaling"] = video_scaling
+                    frame_cache_kwargs["video_margin_pct"] = video_margin_pct
                     if background is not None:
                         frame_cache_kwargs["background"] = background
                     if matting_config is not None:

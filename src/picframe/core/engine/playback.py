@@ -721,6 +721,32 @@ class PlaybackEngine:
             )
         return bool(self._config.get("video_fit_display", False))
 
+    def _video_scaling(self) -> str:
+        """Return the configured video scaling mode (fit | fill | margin)."""
+        default = str(self._config.get("video_scaling", "margin") or "margin")
+        if self._config_repository:
+            value = self._config_repository.get_app_config("viewer.video_scaling", default)
+            value = str(value).strip().lower() if value is not None else default
+            if value in ("fit", "fill", "margin"):
+                return value
+        return default if default in ("fit", "fill", "margin") else "margin"
+
+    def _video_margin_pct(self) -> float:
+        """Return the configured video margin percentage for 'margin' scaling."""
+        default = 6.0
+        try:
+            default = float(self._config.get("video_margin_pct", default))
+        except (TypeError, ValueError):
+            default = 6.0
+        if self._config_repository:
+            try:
+                return float(
+                    self._config_repository.get_app_config("viewer.video_margin_pct", default)
+                )
+            except (TypeError, ValueError):
+                return default
+        return default
+
     def _show_text_on_video(self) -> bool:
         """Return whether metadata text overlays should be shown on video media.
 
@@ -1294,6 +1320,8 @@ class PlaybackEngine:
                     background=self._video_host_background(),
                     matting_config=self._video_matting_config(),
                     edge_config=self._video_edge_config(),
+                    video_scaling=self._video_scaling(),
+                    video_margin_pct=self._video_margin_pct(),
                 )
                 first_frame_path = extractor.get_frame_path("first")
                 last_frame_path = extractor.get_frame_path("last")

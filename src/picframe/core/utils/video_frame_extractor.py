@@ -158,6 +158,8 @@ class VideoFrameExtractor:
         background: Any = None,
         matting_config: Any = None,
         edge_config: Any = None,
+        video_scaling: str = "fit",
+        video_margin_pct: float = 0.0,
     ) -> None:
         """
         Initialize the VideoFrameExtractor.
@@ -191,8 +193,54 @@ class VideoFrameExtractor:
             else VideoFrameEdgeConfig.from_config(edge_config)
         )
         self._background_rgb = self._normalize_background_rgb(background)
+        self.video_scaling: str = self._normalize_video_scaling(video_scaling)
+        self.video_margin_pct: float = self._normalize_margin_pct(video_margin_pct)
         self.last_transition_metadata: VideoTransitionFrameMetadata | None = None
         self.logger: logging.Logger = logging.getLogger("VideoFrameExtractor")
+
+    @staticmethod
+    def _normalize_video_scaling(value: Any) -> str:
+        text = str(value).strip().lower() if value is not None else ""
+        if text in ("fit", "fill", "margin"):
+            return text
+        return "fit"
+
+    @staticmethod
+    def _normalize_margin_pct(value: Any) -> float:
+        try:
+            pct = float(value)
+        except (TypeError, ValueError):
+            return 0.0
+        if pct < 0.0:
+            return 0.0
+        if pct > 45.0:
+            return 45.0
+        return pct
+
+    def _target_content_rect(
+        self, frame_width: int, frame_height: int
+    ) -> tuple[int, int, int, int]:
+        """Return the on-screen video rectangle for the active scaling mode.
+
+        Unlike a thumbnail fit, this upscales small videos so they fill the
+        available area (inset by the configured margin), preserving aspect.
+        """
+        display_w = self.display_width
+        display_h = self.display_height
+        if display_w <= 0 or display_h <= 0 or frame_width <= 0 or frame_height <= 0:
+            return (0, 0, max(frame_width, 0), max(frame_height, 0))
+        if self.video_scaling == "fill":
+            return (0, 0, display_w, display_h)
+        margin = self.video_margin_pct / 100.0 if self.video_scaling == "margin" else 0.0
+        margin = min(max(margin, 0.0), 0.45)
+        avail_w = display_w * (1.0 - 2.0 * margin)
+        avail_h = display_h * (1.0 - 2.0 * margin)
+        scale = min(avail_w / frame_width, avail_h / frame_height)
+        new_w = max(1, int(round(frame_width * scale)))
+        new_h = max(1, int(round(frame_height * scale)))
+        x_offset = (display_w - new_w) // 2
+        y_offset = (display_h - new_h) // 2
+        return (x_offset, y_offset, new_w, new_h)
 
     @staticmethod
     def _source_fingerprint(video_path: str) -> tuple[int, int]:
@@ -214,6 +262,8 @@ class VideoFrameExtractor:
         background: Any = None,
         matting_config: Any = None,
         edge_config: Any = None,
+        video_scaling: str = "fit",
+        video_margin_pct: float = 0.0,
     ) -> str:
         """Return the deterministic path for a cached transition frame."""
         role_suffix = {"first": "1", "last": "2"}.get(role)
@@ -232,6 +282,8 @@ class VideoFrameExtractor:
             background=background,
             matting_config=matting_config,
             edge_config=edge_config,
+            video_scaling=video_scaling,
+            video_margin_pct=video_margin_pct,
             role=role,
         )
         safe_stem = Path(video_path).stem[:48] or "video"
@@ -249,6 +301,8 @@ class VideoFrameExtractor:
             background=self.background,
             matting_config=self.matting_config,
             edge_config=self.edge_config,
+            video_scaling=self.video_scaling,
+            video_margin_pct=self.video_margin_pct,
         )
 
     def get_metadata_path(self) -> str:
@@ -262,6 +316,8 @@ class VideoFrameExtractor:
             background=self.background,
             matting_config=self.matting_config,
             edge_config=self.edge_config,
+            video_scaling=self.video_scaling,
+            video_margin_pct=self.video_margin_pct,
         )
 
     @staticmethod
@@ -274,6 +330,8 @@ class VideoFrameExtractor:
         background: Any = None,
         matting_config: Any = None,
         edge_config: Any = None,
+        video_scaling: str = "fit",
+        video_margin_pct: float = 0.0,
     ) -> str:
         """Return the metadata sidecar path for a cached transition-frame pair."""
         first_path = VideoFrameExtractor.get_cached_frame_path(
@@ -286,6 +344,8 @@ class VideoFrameExtractor:
             background=background,
             matting_config=matting_config,
             edge_config=edge_config,
+            video_scaling=video_scaling,
+            video_margin_pct=video_margin_pct,
         )
         return f"{first_path}.meta.json"
 
@@ -299,6 +359,8 @@ class VideoFrameExtractor:
         background: Any = None,
         matting_config: Any = None,
         edge_config: Any = None,
+        video_scaling: str = "fit",
+        video_margin_pct: float = 0.0,
         role: str = "pair",
     ) -> str:
         """Return a short digest for the source and visual processing inputs."""
@@ -310,6 +372,8 @@ class VideoFrameExtractor:
             background=background,
             matting_config=matting_config,
             edge_config=edge_config,
+            video_scaling=video_scaling,
+            video_margin_pct=video_margin_pct,
             role=role,
         )
         encoded = json.dumps(payload, sort_keys=True, default=str).encode("utf-8")
@@ -325,6 +389,8 @@ class VideoFrameExtractor:
         background: Any = None,
         matting_config: Any = None,
         edge_config: Any = None,
+        video_scaling: str = "fit",
+        video_margin_pct: float = 0.0,
         role: str = "pair",
     ) -> dict[str, Any]:
         """Return normalized inputs that affect cached transition-frame pixels."""
@@ -339,6 +405,10 @@ class VideoFrameExtractor:
             "background": VideoFrameExtractor._normalize_background_rgb(background),
             "matting": VideoFrameExtractor._matting_cache_signature(matting_config),
             "edges": VideoFrameExtractor._edge_cache_signature(edge_config),
+            "video_scaling": VideoFrameExtractor._normalize_video_scaling(video_scaling),
+            "video_margin_pct": round(
+                VideoFrameExtractor._normalize_margin_pct(video_margin_pct), 3
+            ),
             "role": role,
         }
 
@@ -693,6 +763,8 @@ class VideoFrameExtractor:
             background=self.background,
             matting_config=self.matting_config,
             edge_config=self.edge_config,
+            video_scaling=self.video_scaling,
+            video_margin_pct=self.video_margin_pct,
             role="pair",
         )
 
@@ -782,20 +854,25 @@ class VideoFrameExtractor:
         """
         frame = self._as_rgb(frame)
         frame_width, frame_height = frame.size
-        aspect_ratio_frame = frame_width / frame_height
-        aspect_ratio_display = self.display_width / self.display_height
-
-        if aspect_ratio_frame > aspect_ratio_display:
-            new_width = self.display_width
-            new_height = int(self.display_width / aspect_ratio_frame)
-        else:
-            new_height = self.display_height
-            new_width = int(self.display_height * aspect_ratio_frame)
-
-        resized_frame = frame.resize((new_width, new_height), resample=Image.Resampling.BICUBIC)
         canvas = Image.new("RGB", (self.display_width, self.display_height), self._background_rgb)
-        x_offset = (self.display_width - new_width) // 2
-        y_offset = (self.display_height - new_height) // 2
+
+        if self.video_scaling == "fill":
+            foreground = ImageOps.fit(
+                frame,
+                (self.display_width, self.display_height),
+                method=Image.Resampling.BICUBIC,
+                centering=(0.5, 0.5),
+            )
+            canvas.paste(foreground, (0, 0))
+            return _ProcessedVideoFrame(
+                canvas,
+                (0, 0, self.display_width, self.display_height),
+            )
+
+        x_offset, y_offset, new_width, new_height = self._target_content_rect(
+            frame_width, frame_height
+        )
+        resized_frame = frame.resize((new_width, new_height), resample=Image.Resampling.BICUBIC)
         canvas.paste(resized_frame, (x_offset, y_offset))
 
         return _ProcessedVideoFrame(
@@ -872,15 +949,21 @@ class VideoFrameExtractor:
         background: Image.Image,
         frame: Image.Image,
     ) -> tuple[int, int, int, int]:
-        foreground = frame.copy()
-        foreground.thumbnail(
-            (self.display_width, self.display_height),
-            resample=Image.Resampling.LANCZOS,
-        )
-        x_offset = (self.display_width - foreground.width) // 2
-        y_offset = (self.display_height - foreground.height) // 2
+        # Scale the video content up to the configured on-screen rect (unlike
+        # PIL.thumbnail, which only ever shrinks and left small videos tiny).
+        if self.video_scaling == "fill":
+            foreground = ImageOps.fit(
+                frame,
+                (self.display_width, self.display_height),
+                method=Image.Resampling.LANCZOS,
+                centering=(0.5, 0.5),
+            )
+            background.paste(foreground, (0, 0))
+            return (0, 0, self.display_width, self.display_height)
+        x_offset, y_offset, new_w, new_h = self._target_content_rect(frame.width, frame.height)
+        foreground = frame.resize((new_w, new_h), resample=Image.Resampling.LANCZOS)
         background.paste(foreground, (x_offset, y_offset))
-        return (x_offset, y_offset, foreground.width, foreground.height)
+        return (x_offset, y_offset, new_w, new_h)
 
     @staticmethod
     def _as_rgb(frame: Image.Image) -> Image.Image:
@@ -1191,6 +1274,8 @@ class VideoFrameExtractor:
         background: Any = None,
         matting_config: Any = None,
         edge_config: Any = None,
+        video_scaling: str = "fit",
+        video_margin_pct: float = 0.0,
     ) -> bool:
         """
         Extract and save the first and last frames of the video to disk.
@@ -1224,6 +1309,8 @@ class VideoFrameExtractor:
             background=background,
             matting_config=matting_config,
             edge_config=edge_config,
+            video_scaling=video_scaling,
+            video_margin_pct=video_margin_pct,
         )
         first_path = extractor.get_frame_path("first")
         last_path = extractor.get_frame_path("last")
