@@ -54,6 +54,12 @@ from picframe.api.models import (
     MediaResponseDTO,
     MediaSelectionCountRequest,
     MediaSelectionCountResponse,
+    CatalogBatchPreviewRequest,
+    CatalogBatchRequest,
+    CatalogSettingsRequest,
+    CatalogUpdateRequest,
+    NightKeepOnRequest,
+    NightSchedulerSettingsRequest,
     OptimizerConfig,
     OptimizerConfigRequest,
     OptimizerRunRequest,
@@ -154,6 +160,14 @@ OPENAPI_TAGS = [
         "name": "Optimizer",
         "description": "In-place photo library optimization (resize originals, save space).",
     },
+    {
+        "name": "Catalog",
+        "description": "Catalogo de Memorias: media curation, approval and visibility.",
+    },
+    {
+        "name": "Night",
+        "description": "Night standby scheduler (HDMI off/on window + one-night exception).",
+    },
 ]
 BAD_REQUEST_RESPONSE: dict[int | str, dict[str, Any]] = {
     400: {"model": APIErrorResponse, "description": "Invalid request for the endpoint."},
@@ -184,6 +198,8 @@ AUTH_PROTECTED_API_PREFIXES = (
     "/api/hardware-inputs",
     "/api/maintenance",
     "/api/optimizer",
+    "/api/catalog",
+    "/api/night",
     "/api/auth/config",
 )
 # Per-plugin overlay config/layout routes (`/api/overlay/plugins/<id>/config` and
@@ -1147,6 +1163,8 @@ def create_app(
     system_manager: ISystemManager | None = None,
     overlay_controller: IOverlayController | None = None,
     photo_optimizer_service: Any | None = None,
+    catalog_service: Any | None = None,
+    night_scheduler_service: Any | None = None,
 ) -> FastAPI:
     """
     Create and configure the FastAPI application instance.
@@ -1724,6 +1742,160 @@ def create_app(
         if not started:
             return {"status": "busy", "message": "An optimization run is already in progress."}
         return {"status": "started", "message": f"Optimization run started (mode={payload.mode})."}
+
+    # -- Catalogo de Memorias ---------------------------------------------
+
+    def _require_catalog() -> Any:
+        if catalog_service is None:
+            raise HTTPException(status_code=503, detail="Catalog service unavailable")
+        return catalog_service
+
+    @app.get("/api/catalog/stats", tags=["Catalog"], summary="Catalog dashboard counters")
+    async def api_catalog_stats() -> dict[str, Any]:
+        return _require_catalog().stats()
+
+    @app.get("/api/catalog/settings", tags=["Catalog"], summary="Catalog settings")
+    async def api_catalog_get_settings() -> dict[str, Any]:
+        return _require_catalog().get_settings()
+
+    @app.put("/api/catalog/settings", tags=["Catalog"], summary="Update catalog settings")
+    async def api_catalog_set_settings(payload: CatalogSettingsRequest) -> dict[str, Any]:
+        return _require_catalog().set_settings(
+            geocode_enabled=payload.geocode_enabled,
+            show_unapproved_on_hdmi=payload.show_unapproved_on_hdmi,
+        )
+
+    @app.get("/api/catalog", tags=["Catalog"], summary="List catalog entries (paginated)")
+    async def api_catalog_list(
+        filters: list[str] | None = Query(default=None),
+        search: str | None = Query(default=None),
+        year: int | None = Query(default=None),
+        sort: str = Query(default="date_desc"),
+        page: int = Query(default=1, ge=1),
+        per_page: int = Query(default=25, ge=1, le=100),
+    ) -> dict[str, Any]:
+        svc = _require_catalog()
+        result = svc.list(
+            filters=filters,
+            search=search,
+            year=year,
+            sort=sort,
+            limit=per_page,
+            offset=(page - 1) * per_page,
+        )
+        result["page"] = page
+        result["per_page"] = per_page
+        return result
+
+    @app.get("/api/catalog/item", tags=["Catalog"], summary="Single catalog entry")
+    async def api_catalog_item(rel_path: str = Query(...)) -> dict[str, Any]:
+        row = _require_catalog().get(rel_path)
+        if row is None:
+            raise HTTPException(status_code=404, detail="Catalog entry not found")
+        return row
+
+    @app.put("/api/catalog/item", tags=["Catalog"], summary="Update one catalog entry")
+    async def api_catalog_update(
+        payload: CatalogUpdateRequest, rel_path: str = Query(...)
+    ) -> dict[str, Any]:
+        svc = _require_catalog()
+        fields: dict[str, Any] = {}
+        if payload.approved_description is not None:
+            fields["approved_description"] = payload.approved_description
+            fields["status"] = payload.status or "approved"
+        if payload.status is not None:
+            fields["status"] = payload.status
+        if payload.visible is not None:
+            fields["visible"] = 1 if payload.visible else 0
+        if not svc.update(rel_path, fields):
+            raise HTTPException(status_code=404, detail="Catalog entry not found")
+        return svc.get(rel_path)
+
+    def _resolve_batch_targets(payload: Any) -> list[str]:
+        svc = _require_catalog()
+        if payload.select_all:
+            return svc.select_all(payload.filters, payload.search, payload.year)
+        return payload.rel_paths or []
+
+    @app.post("/api/catalog/batch/preview", tags=["Catalog"], summary="Preview a batch action")
+    async def api_catalog_batch_preview(payload: CatalogBatchPreviewRequest) -> dict[str, Any]:
+        svc = _require_catalog()
+        targets = _resolve_batch_targets(payload)
+        return svc.batch_preview(targets, payload.overwrite_approved)
+
+    @app.post("/api/catalog/batch", tags=["Catalog"], summary="Apply a batch action")
+    async def api_catalog_batch(payload: CatalogBatchRequest) -> dict[str, Any]:
+        svc = _require_catalog()
+        targets = _resolve_batch_targets(payload)
+        return svc.batch(
+            targets,
+            payload.action,
+            description=payload.description,
+            overwrite_approved=payload.overwrite_approved,
+        )
+
+    @app.post("/api/catalog/scan", tags=["Catalog"], summary="Rescan the library")
+    async def api_catalog_scan() -> dict[str, str]:
+        svc = _require_catalog()
+        started = svc.start_scan_async()
+        return {"status": "started" if started else "busy"}
+
+    @app.get("/api/catalog/scan/status", tags=["Catalog"], summary="Scan status")
+    async def api_catalog_scan_status() -> dict[str, Any]:
+        return _require_catalog().status()
+
+    @app.get("/api/catalog/thumbnail", tags=["Catalog"], summary="Cached catalog thumbnail")
+    async def api_catalog_thumbnail(rel_path: str = Query(...)) -> Response:
+        import hashlib
+        import os
+
+        from PIL import Image, ImageOps
+
+        svc = _require_catalog()
+        src = svc.thumbnail_abspath(rel_path)
+        if not os.path.isfile(src):
+            raise HTTPException(status_code=404, detail="Media not found")
+        cache_dir = os.path.join(str(resource_paths.data_dir), "catalog-thumbs")
+        os.makedirs(cache_dir, exist_ok=True)
+        try:
+            mtime = os.path.getmtime(src)
+        except OSError:
+            mtime = 0
+        key = hashlib.sha1(f"{rel_path}:{mtime}".encode()).hexdigest()
+        dest = os.path.join(cache_dir, f"{key}.jpg")
+        if not os.path.isfile(dest):
+            try:
+                with Image.open(src) as im:
+                    im = ImageOps.exif_transpose(im)
+                    im.thumbnail((320, 320), Image.Resampling.LANCZOS)
+                    out = im if im.mode in ("RGB", "L") else im.convert("RGB")
+                    out.save(dest, format="JPEG", quality=82)
+            except Exception as exc:  # pragma: no cover - non-image or unreadable
+                raise HTTPException(status_code=415, detail=f"No thumbnail: {exc}") from exc
+        return FileResponse(dest, media_type="image/jpeg", headers={
+            "Cache-Control": "public, max-age=3600",
+        })
+
+    # -- Night standby scheduler ------------------------------------------
+
+    def _require_night() -> Any:
+        if night_scheduler_service is None:
+            raise HTTPException(status_code=503, detail="Night scheduler unavailable")
+        return night_scheduler_service
+
+    @app.get("/api/night/settings", tags=["Night"], summary="Night scheduler status/settings")
+    async def api_night_settings() -> dict[str, Any]:
+        return _require_night().get_settings()
+
+    @app.put("/api/night/settings", tags=["Night"], summary="Update night scheduler")
+    async def api_night_set_settings(payload: NightSchedulerSettingsRequest) -> dict[str, Any]:
+        return _require_night().set_settings(
+            enabled=payload.enabled, off_time=payload.off_time, on_time=payload.on_time
+        )
+
+    @app.post("/api/night/keep-on-tonight", tags=["Night"], summary="One-night keep-on exception")
+    async def api_night_keep_on(payload: NightKeepOnRequest) -> dict[str, Any]:
+        return _require_night().keep_on_tonight(payload.enable)
 
     @app.get(
         "/api/system/locales",

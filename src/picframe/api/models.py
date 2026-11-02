@@ -678,3 +678,71 @@ class OptimizerStatusResponse(BaseModel):
     progress: OptimizerProgress = Field(default_factory=OptimizerProgress)
     last_result: OptimizerRunResultModel | None = None
     config: OptimizerConfig = Field(default_factory=OptimizerConfig)
+
+
+# ---------------------------------------------------------------------------
+# Catalogo de Memorias (Missao Mestre item 3-7)
+# ---------------------------------------------------------------------------
+
+CatalogStatus = Literal["pending", "approved", "review"]
+CatalogBatchAction = Literal[
+    "set_description", "approve_suggestion", "mark_review", "hide", "show"
+]
+
+
+class CatalogSettingsRequest(BaseModel):
+    """Partial update of catalog-level settings."""
+
+    geocode_enabled: bool | None = None
+    show_unapproved_on_hdmi: bool | None = None
+
+
+class CatalogUpdateRequest(BaseModel):
+    """Per-media approval/visibility update."""
+
+    approved_description: str | None = None
+    status: CatalogStatus | None = None
+    visible: bool | None = None
+
+
+class CatalogBatchRequest(BaseModel):
+    """Batch action over an explicit id list or a whole filtered result set."""
+
+    rel_paths: list[str] | None = None
+    select_all: bool = False
+    filters: list[str] | None = None
+    search: str | None = None
+    year: int | None = None
+    action: CatalogBatchAction
+    description: str | None = None
+    overwrite_approved: bool = False
+
+
+class CatalogBatchPreviewRequest(BaseModel):
+    """Preview how many rows a batch would change before applying it."""
+
+    rel_paths: list[str] | None = None
+    select_all: bool = False
+    filters: list[str] | None = None
+    search: str | None = None
+    year: int | None = None
+    overwrite_approved: bool = False
+
+
+# ---------------------------------------------------------------------------
+# Night standby scheduler (Missao Mestre item 12)
+# ---------------------------------------------------------------------------
+
+
+class NightSchedulerSettingsRequest(BaseModel):
+    """Partial update of the night standby scheduler."""
+
+    enabled: bool | None = None
+    off_time: str | None = Field(default=None, description="HH:MM, e.g. '00:00'.")
+    on_time: str | None = Field(default=None, description="HH:MM, e.g. '06:00'.")
+
+
+class NightKeepOnRequest(BaseModel):
+    """Toggle the one-night 'keep monitor on tonight' exception."""
+
+    enable: bool = True

@@ -28,6 +28,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # --- locale (o app tenta setar en_US.UTF-8) ---
 RUN sed -i 's/^# *en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && locale-gen
 
+# --- tooling extra (camada propria p/ nao invalidar a camada pesada de apt): ---
+#  * exiftool: EXIF/XMP/IPTC de fotos + metadados de contêiner de video.
+#  * wlr-randr: liga/desliga o output HDMI sob o compositor wlroots/labwc
+#    (usado pelo WaylandDisplayPower e pelo agendador noturno).
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      libimage-exiftool-perl wlr-randr \
+ && apt-get clean && rm -rf /var/lib/apt/lists/*
+
 # --- timezone America/Sao_Paulo ---
 # TZ (lido pela libc/Python) + /etc/localtime e /etc/timezone (apps que ignoram TZ).
 # tzdata ja vem como dependencia da stack; o zoneinfo America/Sao_Paulo esta presente.

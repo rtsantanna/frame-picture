@@ -19,9 +19,12 @@ from picframe.api.server import WebServer
 from picframe.core.engine.playback import PlaybackEngine
 from picframe.core.events.bus import PriorityQueueEventBus
 from picframe.core.renderers.pi3d_renderer import Pi3dRenderer
+from picframe.core.repositories.sqlite_catalog import SQLiteCatalogRepository
 from picframe.core.repositories.sqlite_config import SQLiteConfigRepository
 from picframe.core.repositories.sqlite_media import SQLiteMediaRepository
 from picframe.core.services.bootstrapper import EnvironmentBootstrapper
+from picframe.core.services.catalog_service import CatalogService
+from picframe.core.services.night_scheduler import NightSchedulerService
 from picframe.core.services.config_service import ConfigService
 from picframe.core.services.hardware_input import HardwareInputService
 from picframe.core.services.image_processing import ImageProcessingService
@@ -62,10 +65,12 @@ def run_picframe(
     data_dir = str(resource_paths.data_dir)
     config_db_path = config_db_path or os.path.join(data_dir, "config.db3")
     media_db_path = media_db_path or os.path.join(data_dir, "media_cache.db3")
+    catalog_db_path = os.path.join(data_dir, "catalog.db3")
 
     _config_repo = SQLiteConfigRepository(config_db_path)
     repair_legacy_resource_defaults(_config_repo)
     media_repo = SQLiteMediaRepository(media_db_path)
+    catalog_repo = SQLiteCatalogRepository(catalog_db_path)
 
     # 2. Initialize Event Bus
     event_bus = PriorityQueueEventBus()
@@ -264,6 +269,8 @@ def run_picframe(
     http_config = nested_config.get("http", {})
     cors_origins = http_config.get("cors_allowed_origins", ["*"])
     photo_optimizer_service = PhotoOptimizerService(config_repository=_config_repo)
+    catalog_service = CatalogService(catalog_repo, _config_repo)
+    night_scheduler_service = NightSchedulerService(event_bus, _config_repo)
     app = create_app(
         event_publisher=event_bus,
         event_subscriber=event_bus,
@@ -277,7 +284,10 @@ def run_picframe(
         system_manager=hal_adapters.system_manager,
         overlay_controller=overlay_controller,
         photo_optimizer_service=photo_optimizer_service,
+        catalog_service=catalog_service,
+        night_scheduler_service=night_scheduler_service,
     )
+    night_scheduler_service.start()
     web_server = WebServer(app, port=port)
 
     mqtt_adapter = HomeAssistantMqttAdapter(

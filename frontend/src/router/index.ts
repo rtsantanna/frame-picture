@@ -10,6 +10,11 @@ const router = createRouter({
       component: RemoteView
     },
     {
+      path: '/catalog',
+      name: 'catalog',
+      component: () => import('../views/CatalogView.vue')
+    },
+    {
       path: '/appearance',
       name: 'appearance',
       component: () => import('../views/AppearanceView.vue')
@@ -23,6 +28,11 @@ const router = createRouter({
       path: '/optimizer',
       name: 'optimizer',
       component: () => import('../views/OptimizerView.vue')
+    },
+    {
+      path: '/night',
+      name: 'night',
+      component: () => import('../views/NightView.vue')
     },
     {
       path: '/logs',
