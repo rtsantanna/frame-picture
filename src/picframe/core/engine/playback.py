@@ -73,6 +73,7 @@ class PlaybackEngine:
         cache_dir: str | None = None,
         renderer_config: RendererConfig | None = None,
         renderer_asset_validator: Callable[[RendererConfig], list[Any]] | None = None,
+        catalog_service: Any | None = None,
     ) -> None:
         """
         Initialize the PlaybackEngine.
@@ -95,6 +96,7 @@ class PlaybackEngine:
         self._cache_dir = cache_dir
         self._renderer_config = renderer_config
         self._renderer_asset_validator = renderer_asset_validator or (lambda _config: [])
+        self._catalog_service = catalog_service
 
         self._state = State.IDLE
         self._is_running = False
@@ -1754,6 +1756,20 @@ class PlaybackEngine:
 
         parts = []
 
+        # Catalogo de Memorias: the approved description (never the raw filename,
+        # never "Dado nao encontrado"). ``description_for`` returns None unless
+        # there is an approved description (or an unapproved suggestion when the
+        # operator explicitly enabled showing them), so nothing leaks to the TV.
+        if "description" in show_text_config and self._catalog_service is not None:
+            filepath = getattr(media_item, "filepath", None)
+            if filepath:
+                try:
+                    desc = self._catalog_service.description_for(filepath)
+                except Exception:
+                    desc = None
+                if desc:
+                    parts.append(desc)
+
         if "title" in show_text_config and getattr(media_item, "title", None):
             parts.append(media_item.title)
 
@@ -1826,7 +1842,10 @@ class PlaybackEngine:
                 if location:
                     parts.append(location)
 
-        return " - ".join(parts)
+        # Missao 04: join with " | " (e.g. "Cancun Xcaret 2013 | 29/08/2013").
+        # Empty parts are already dropped above, so the separator never shows for
+        # a missing field.
+        return " | ".join(parts)
 
     def _handle_media_error(self, error: Exception) -> None:
         """Handle a recoverable media processing error."""

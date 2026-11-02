@@ -71,6 +71,7 @@ def run_picframe(
     repair_legacy_resource_defaults(_config_repo)
     media_repo = SQLiteMediaRepository(media_db_path)
     catalog_repo = SQLiteCatalogRepository(catalog_db_path)
+    catalog_service = CatalogService(catalog_repo, _config_repo)
 
     # 2. Initialize Event Bus
     event_bus = PriorityQueueEventBus()
@@ -92,7 +93,9 @@ def run_picframe(
     logger.info(f"HAL Adapters injected: {hal_adapters}")
 
     # 5. Initialize Services
-    playlist_manager = PlaylistManager(media_repo, _config_repo, event_bus, resource_paths)
+    playlist_manager = PlaylistManager(
+        media_repo, _config_repo, event_bus, resource_paths, catalog_service=catalog_service
+    )
     from picframe.core.services.display_power import DisplayPowerManager
 
     display_power_manager = DisplayPowerManager(
@@ -181,7 +184,12 @@ def run_picframe(
     from picframe.core.services.renderer_config import build_renderer_config
 
     renderer_config = build_renderer_config(_config_repo, resource_paths)
-    renderer = Pi3dRenderer(renderer_config, event_subscriber=event_bus, event_publisher=event_bus)
+    renderer = Pi3dRenderer(
+        renderer_config,
+        event_subscriber=event_bus,
+        event_publisher=event_bus,
+        catalog_service=catalog_service,
+    )
 
     from picframe.core.renderers.gst_video_renderer import GstVideoRenderer
 
@@ -254,6 +262,7 @@ def run_picframe(
         video_player=video_player,
         cache_dir=cache_dir,
         renderer_config=renderer_config,
+        catalog_service=catalog_service,
         renderer_asset_validator=lambda config: validate_renderer_assets(
             config,
             no_files_img=resource_paths.resolve(
@@ -269,7 +278,6 @@ def run_picframe(
     http_config = nested_config.get("http", {})
     cors_origins = http_config.get("cors_allowed_origins", ["*"])
     photo_optimizer_service = PhotoOptimizerService(config_repository=_config_repo)
-    catalog_service = CatalogService(catalog_repo, _config_repo)
     night_scheduler_service = NightSchedulerService(event_bus, _config_repo)
     app = create_app(
         event_publisher=event_bus,

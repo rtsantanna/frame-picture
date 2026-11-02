@@ -115,6 +115,7 @@ class Pi3dRenderer(IRenderer):
         config: RendererConfig,
         event_subscriber: IEventSubscriber | None = None,
         event_publisher: IEventPublisher | None = None,
+        catalog_service: Any | None = None,
     ) -> None:
         """
         Initialize the renderer with configuration.
@@ -127,6 +128,7 @@ class Pi3dRenderer(IRenderer):
         self._config = config
         self._event_subscriber = event_subscriber
         self._event_publisher = event_publisher
+        self._catalog_service = catalog_service
 
         if self._event_subscriber:
             self._event_subscriber.subscribe(RendererConfigUpdatedEvent, self._handle_config_event)
@@ -191,6 +193,18 @@ class Pi3dRenderer(IRenderer):
         show_text_fm = self._config.show_text_fm
 
         parts = []
+        # Catalogo de Memorias: approved description (never the filename, never
+        # "Dado nao encontrado"). description_for() returns None unless approved
+        # (or unapproved suggestions were explicitly enabled for the HDMI).
+        if "description" in show_text_config and self._catalog_service is not None:
+            filepath = getattr(media_item, "filepath", None)
+            if filepath:
+                try:
+                    desc = self._catalog_service.description_for(filepath)
+                except Exception:
+                    desc = None
+                if desc:
+                    parts.append(desc)
         if "title" in show_text_config and getattr(media_item, "title", None):
             parts.append(media_item.title)
         if "caption" in show_text_config and getattr(media_item, "caption", None):
@@ -221,7 +235,9 @@ class Pi3dRenderer(IRenderer):
             if location:
                 parts.append(location)
 
-        return " - ".join(parts)
+        # Missao 04: "Descricao | dd/MM/yyyy"; empty parts already dropped, so
+        # the separator never shows for a missing field.
+        return " | ".join(parts)
 
     def _generate_text_strings(self, media_item: Any) -> tuple[str, ...]:
         """Generate one or two text overlay strings for the current display item."""

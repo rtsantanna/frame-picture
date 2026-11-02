@@ -59,6 +59,7 @@ class PlaylistManager:
         config_repository: IConfigRepository | None = None,
         event_publisher: IEventPublisher | None = None,
         resource_paths: ResourcePaths | None = None,
+        catalog_service: Any | None = None,
     ) -> None:
         """
         Initialize the PlaylistManager.
@@ -67,6 +68,7 @@ class PlaylistManager:
             media_repository: The repository used to access media metadata.
         """
         self._media_repo = media_repository
+        self._catalog_service = catalog_service
         self._config_repo = config_repository
         self._event_publisher = event_publisher
         self._resource_paths = resource_paths or ResourcePaths.from_base_dir("~/.picframe")
@@ -726,6 +728,17 @@ class PlaylistManager:
                 continue
 
             filepath = item_data.get("filepath")
+            # Catalogo de Memorias: media hidden in the catalog never reaches the
+            # screen. Checked here (not only at build time) so hiding the photo
+            # currently queued takes effect on the next slot without a rebuild,
+            # and re-showing it reinstates it without restarting the cycle.
+            if (
+                self._catalog_service is not None
+                and filepath
+                and self._catalog_service.is_hidden(str(filepath))
+            ):
+                continue
+
             file_stat = self._get_display_file_stat(str(filepath) if filepath else "")
             if file_stat is None:
                 logger.warning(f"File not found, marking inactive and skipping: {filepath}")
