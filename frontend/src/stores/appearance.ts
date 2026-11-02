@@ -18,13 +18,16 @@ export interface OverlayAppearance {
   text_opacity: number
   text_bg_color: string
   text_bg_opacity: number
+  video_scaling: string
+  video_margin_pct: number
 }
 
 const DEFAULTS: OverlayAppearance = {
   clock_enabled: true, clock_color: '#f8fafc', clock_size: 120, clock_opacity: 1,
   description_enabled: true, date_enabled: true,
   text_color: '#f8fafc', text_size: 40, text_opacity: 1,
-  text_bg_color: '#000000', text_bg_opacity: 0.35
+  text_bg_color: '#000000', text_bg_opacity: 0.35,
+  video_scaling: 'margin', video_margin_pct: 6
 }
 
 export const useAppearanceStore = defineStore('appearance', () => {

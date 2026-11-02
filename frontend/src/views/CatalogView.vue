@@ -215,7 +215,38 @@ const EVENT_LABELS: Record<string, string> = {
   description_created: 'Descrição criada', description_edited: 'Descrição alterada',
   approved: 'Aprovada', marked_review: 'Marcada p/ revisão', unapproved: 'Aprovação retirada',
   hidden: 'Ocultada', shown: 'Reexibida', suggestion_changed: 'Sugestão alterada',
-  status_changed: 'Status alterado'
+  status_changed: 'Status alterado',
+  rotation_changed: 'Rotação ajustada', rotation_reset: 'Rotação automática restaurada'
+}
+
+// --- rotação manual (não destrutiva) ---
+const showRotateModal = ref(false)
+const rotateItemRef = ref<CatalogItem | null>(null)
+const rotateSaved = ref(0)
+const rotatePreview = ref(0)
+const rotateSaving = ref(false)
+function openRotate(it: CatalogItem) {
+  rotateItemRef.value = it
+  rotateSaved.value = ((it.manual_rotation || 0) % 360 + 360) % 360
+  rotatePreview.value = rotateSaved.value
+  showRotateModal.value = true
+}
+function rotateBy(delta: number) {
+  rotatePreview.value = ((rotatePreview.value + delta) % 360 + 360) % 360
+}
+function rotateAuto() { rotatePreview.value = 0 }
+const rotatePreviewDelta = computed(
+  () => ((rotatePreview.value - rotateSaved.value) % 360 + 360) % 360
+)
+async function confirmRotate() {
+  if (!rotateItemRef.value) return
+  rotateSaving.value = true
+  try {
+    await store.rotateItem(rotateItemRef.value.rel_path, String(rotatePreview.value))
+  } finally {
+    rotateSaving.value = false
+    showRotateModal.value = false
+  }
 }
 function eventLabel(e: unknown): string { return EVENT_LABELS[String(e)] || String(e) }
 function fmtTs(ts: unknown): string {
@@ -396,6 +427,7 @@ function fmtTs(ts: unknown): string {
                 <button type="button" class="rounded bg-emerald-600 px-2 py-1 text-[11px] text-white hover:bg-emerald-700" @click="approveRow(it)">Aprovar</button>
                 <button v-if="it.suggestion" type="button" class="rounded bg-indigo-600 px-2 py-1 text-[11px] text-white hover:bg-indigo-700" @click="acceptSuggestion(it)">Aceitar</button>
                 <button type="button" class="rounded bg-sky-600 px-2 py-1 text-[11px] text-white hover:bg-sky-700" @click="markReview(it)">Revisar</button>
+                <button type="button" class="rounded bg-amber-600 px-2 py-1 text-[11px] text-white hover:bg-amber-700" @click="openRotate(it)" title="Rotacionar (não destrutivo)">Rotacionar<span v-if="it.manual_rotation" class="ml-0.5">({{ it.manual_rotation }}°)</span></button>
                 <button type="button" class="rounded bg-gray-500 px-2 py-1 text-[11px] text-white hover:bg-gray-600" @click="openHistory(it)">Histórico</button>
               </div>
             </td>
@@ -460,6 +492,33 @@ function fmtTs(ts: unknown): string {
         <div class="flex justify-end gap-2">
           <button type="button" class="rounded-lg px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700" @click="showBatchModal = false">Cancelar</button>
           <button type="button" class="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50" :disabled="!batchDesc.trim()" @click="confirmBatchDescription">Aplicar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rotacionar (rotação manual não destrutiva) -->
+    <div v-if="showRotateModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" @click.self="showRotateModal = false">
+      <div class="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl dark:bg-gray-800">
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white">Rotacionar — <span class="font-mono text-sm">{{ rotateItemRef?.filename }}</span></h3>
+        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Correção visual não destrutiva (o arquivo original não é alterado). Pré-visualização abaixo.</p>
+        <div class="mt-4 flex h-56 items-center justify-center overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-900">
+          <img v-if="rotateItemRef" :src="store.thumbUrl(rotateItemRef.rel_path)"
+            class="max-h-48 max-w-[90%] object-contain transition-transform duration-200"
+            :style="{ transform: 'rotate(' + rotatePreviewDelta + 'deg)' }" alt="" />
+        </div>
+        <div class="mt-3 text-center text-xs text-gray-500 dark:text-gray-400">
+          Rotação: <strong>{{ rotatePreview }}°</strong>
+          <span v-if="rotatePreview !== rotateSaved"> (atual salvo: {{ rotateSaved }}°)</span>
+        </div>
+        <div class="mt-4 grid grid-cols-2 gap-2">
+          <button type="button" class="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700" @click="rotateBy(270)">↺ 90° esquerda</button>
+          <button type="button" class="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700" @click="rotateBy(90)">↻ 90° direita</button>
+          <button type="button" class="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700" @click="rotateBy(180)">180°</button>
+          <button type="button" class="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700" @click="rotateAuto">Restaurar automático</button>
+        </div>
+        <div class="mt-5 flex justify-end gap-2">
+          <button type="button" class="rounded-lg px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700" @click="showRotateModal = false">Cancelar</button>
+          <button type="button" class="rounded-lg bg-amber-600 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-50" :disabled="rotateSaving || rotatePreview === rotateSaved" @click="confirmRotate">Confirmar</button>
         </div>
       </div>
     </div>

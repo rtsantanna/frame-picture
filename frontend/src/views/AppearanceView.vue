@@ -186,6 +186,32 @@ onMounted(() => appearanceStore.fetch())
           <label class="flex items-center justify-between text-sm">Opacidade
             <input type="number" min="0" max="1" step="0.1" :value="hdmi.clock_opacity" class="w-20 rounded border px-2 py-1 text-sm dark:bg-gray-700" @change="saveHdmi({ clock_opacity: Number(($event.target as HTMLInputElement).value) })" /></label>
         </div>
+
+        <!-- Dimensionamento dos vídeos (Missao 06 atualizada) -->
+        <div class="space-y-2 rounded-lg border border-gray-200 p-3 dark:border-gray-700 sm:col-span-2">
+          <span class="text-sm font-semibold text-gray-900 dark:text-white">Dimensionamento dos vídeos na HDMI</span>
+          <p class="text-xs text-gray-500 dark:text-gray-400">
+            Ajustar à tela: vídeo grande, proporção preservada, sem cortes. Preencher: cobre a tela
+            (pode cortar). Margem personalizada: borda discreta controlável.
+          </p>
+          <label class="flex items-center justify-between text-sm">Modo
+            <select :value="hdmi.video_scaling"
+              class="rounded border px-2 py-1 text-sm dark:bg-gray-700"
+              @change="saveHdmi({ video_scaling: ($event.target as HTMLSelectElement).value })">
+              <option value="fit">Ajustar à tela</option>
+              <option value="fill">Preencher a tela</option>
+              <option value="margin">Margem personalizada</option>
+            </select>
+          </label>
+          <label class="flex items-center justify-between text-sm" :class="hdmi.video_scaling === 'margin' ? '' : 'opacity-50'">
+            Margem (%)
+            <input type="number" min="0" max="45" step="1" :value="hdmi.video_margin_pct"
+              :disabled="hdmi.video_scaling !== 'margin'"
+              class="w-20 rounded border px-2 py-1 text-sm dark:bg-gray-700"
+              @change="saveHdmi({ video_margin_pct: Number(($event.target as HTMLInputElement).value) })" />
+          </label>
+          <p class="text-[11px] text-gray-400">Padrão recomendado: Margem personalizada, ~6% (borda discreta). Vale após a próxima reprodução do vídeo.</p>
+        </div>
       </div>
     </Panel>
 

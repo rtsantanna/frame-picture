@@ -32,6 +32,7 @@ export interface CatalogItem {
   status: string
   visible: number
   edited_manually: number
+  manual_rotation?: number
 }
 
 export interface CatalogStats {
@@ -130,6 +131,16 @@ export const useCatalogStore = defineStore('catalog', () => {
     return data
   }
 
+  async function rotateItem(relPath: string, action: string) {
+    const { data } = await api.post<CatalogItem>(
+      `/catalog/rotate?rel_path=${encodeURIComponent(relPath)}`,
+      { action }
+    )
+    const idx = items.value.findIndex(i => i.rel_path === relPath)
+    if (idx >= 0) items.value[idx] = data
+    return data
+  }
+
   async function batchPreview(payload: Record<string, unknown>): Promise<BatchPreview> {
     const { data } = await api.post<BatchPreview>('/catalog/batch/preview', payload)
     return data
@@ -194,7 +205,7 @@ export const useCatalogStore = defineStore('catalog', () => {
   return {
     items, total, stats, settings, loading, error, scanning,
     sync, divergences,
-    fetchStats, fetchList, fetchSettings, saveSettings, updateItem,
+    fetchStats, fetchList, fetchSettings, saveSettings, updateItem, rotateItem,
     batchPreview, batch, scan, scanStatus, thumbUrl, fetchHistory,
     fetchSync, syncNow, fetchDivergences
   }
