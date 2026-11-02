@@ -1,0 +1,44 @@
+# Frame Picture — Docker Compose (Missao 02)
+# Arquitetura aprovada: host cuida de kernel/drivers/Docker/rclone/biblioteca;
+# container cuida de labwc + PicFrame + render + API + painel.
+services:
+  framepicture:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: framepicture:latest
+    container_name: framepicture
+    restart: "no"            # durante os testes; vira unless-stopped na producao
+    network_mode: host        # painel web acessivel na LAN do Pi (porta 9000); sem exposicao externa
+    cap_add:
+      - SYS_ADMIN             # necessario p/ DRM master + VT do compositor wlroots (sem --privileged)
+    devices:
+      - "/dev/dri:/dev/dri"
+      - "/dev/input:/dev/input"
+      - "/dev/tty0:/dev/tty0"
+      - "/dev/tty1:/dev/tty1"
+      - "/dev/tty2:/dev/tty2"
+      - "/dev/tty3:/dev/tty3"
+      - "/dev/tty4:/dev/tty4"
+      - "/dev/tty5:/dev/tty5"
+      - "/dev/tty6:/dev/tty6"
+      - "/dev/tty7:/dev/tty7"
+    volumes:
+      - "/data/photos:/data/photos"                 # biblioteca local (escrita controlada p/ otimizacao)
+      - "framepicture_state:/root/.picframe"         # config/estado/db persistentes
+      - "./start.sh:/start.sh:ro"
+      - "./labwc-rc.xml:/labwc-rc.xml:ro"
+    environment:
+      - XDG_RUNTIME_DIR=/run/user/0
+      - LIBSEAT_BACKEND=builtin
+      - WLR_LIBINPUT_NO_DEVICES=1
+      - WLR_RENDERER=gles2
+      - SDL_VIDEODRIVER=wayland
+      - SDL_VIDEO_WAYLAND_WMCLASS=picframe-pi3d
+      - PICFRAME_DIR=/root/.picframe
+      - PIC_DIR=/data/photos
+      - LANG=en_US.UTF-8
+    command: ["/bin/bash", "/start.sh"]
+
+volumes:
+  framepicture_state:

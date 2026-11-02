@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<!-- Frame Picture — regras de janela labwc (kiosk): janelas do picframe sem
+     decoracao, fixas, sem barra de tarefas. Baseado no instalador oficial do PicFrame. -->
+<labwc_config>
+  <windowRules>
+    <windowRule identifier="picframe-pi3d"
+                serverDecoration="no"
+                skipTaskbar="yes"
+                skipWindowSwitcher="yes"
+                fixedPosition="yes" />
+    <windowRule title="picframe-pi3d"
+                serverDecoration="no"
+                skipTaskbar="yes"
+                skipWindowSwitcher="yes"
+                fixedPosition="yes" />
+    <windowRule title="picframe-video"
+                serverDecoration="no"
+                skipTaskbar="yes"
+                skipWindowSwitcher="yes"
+                fixedPosition="yes" />
+  </windowRules>
+</labwc_config>
