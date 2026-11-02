@@ -57,6 +57,7 @@ from picframe.api.models import (
     MediaSelectionCountResponse,
     CatalogBatchPreviewRequest,
     CatalogBatchRequest,
+    CatalogRotateRequest,
     CatalogSettingsRequest,
     CatalogUpdateRequest,
     NightKeepOnRequest,
@@ -1828,6 +1829,19 @@ def create_app(
             raise HTTPException(status_code=404, detail="Catalog entry not found")
         return svc.get(rel_path)
 
+    @app.post("/api/catalog/rotate", tags=["Catalog"], summary="Rotate one catalog entry")
+    async def api_catalog_rotate(
+        payload: CatalogRotateRequest, rel_path: str = Query(...)
+    ) -> dict[str, Any]:
+        """Apply a non-destructive manual rotation (does not modify the original
+        file). ``action``: right | left | flip | auto. Preserves approval,
+        description, GPS, EXIF and visibility; records a history event."""
+        svc = _require_catalog()
+        result = svc.rotate(rel_path, payload.action)
+        if result is None:
+            raise HTTPException(status_code=404, detail="Catalog entry not found")
+        return svc.get(rel_path) or result
+
     def _resolve_batch_targets(payload: Any) -> list[str]:
         svc = _require_catalog()
         if payload.select_all:
@@ -1878,7 +1892,17 @@ def create_app(
             mtime = os.path.getmtime(src)
         except OSError:
             mtime = 0
-        key = hashlib.sha1(f"{rel_path}:{mtime}".encode()).hexdigest()
+        try:
+            rotation = int((svc.get(rel_path) or {}).get("manual_rotation") or 0) % 360
+        except (TypeError, ValueError):
+            rotation = 0
+        _ROT_T = {
+            90: Image.Transpose.ROTATE_270,
+            180: Image.Transpose.ROTATE_180,
+            270: Image.Transpose.ROTATE_90,
+        }
+        # Rotation is part of the cache key so changing it invalidates the thumb.
+        key = hashlib.sha1(f"{rel_path}:{mtime}:r{rotation}".encode()).hexdigest()
         dest = os.path.join(cache_dir, f"{key}.jpg")
         ext = os.path.splitext(src)[1].lower()
         is_video = ext in (".mp4", ".mov", ".m4v", ".avi", ".mkv", ".webm", ".3gp")
@@ -1903,6 +1927,11 @@ def create_app(
                         )
                     if not os.path.isfile(dest):
                         raise HTTPException(status_code=415, detail="No video frame")
+                    if rotation in _ROT_T:
+                        with Image.open(dest) as vim:
+                            vim.transpose(_ROT_T[rotation]).save(
+                                dest, format="JPEG", quality=82
+                            )
                 except FileNotFoundError as exc:
                     raise HTTPException(status_code=503, detail="ffmpeg unavailable") from exc
                 except subprocess.TimeoutExpired as exc:
@@ -1911,6 +1940,8 @@ def create_app(
                 try:
                     with Image.open(src) as im:
                         im = ImageOps.exif_transpose(im)
+                        if rotation in _ROT_T:
+                            im = im.transpose(_ROT_T[rotation])
                         im.thumbnail((320, 320), Image.Resampling.LANCZOS)
                         out = im if im.mode in ("RGB", "L") else im.convert("RGB")
                         out.save(dest, format="JPEG", quality=82)
@@ -2143,6 +2174,10 @@ def create_app(
             "text_opacity": float(config_repository.get_app_config("viewer.text_opacity", 1.0)),
             "text_bg_color": config_repository.get_app_config("viewer.text_bg_color", "#000000"),
             "text_bg_opacity": float(config_repository.get_app_config("viewer.text_bg_opacity", 0.35)),
+            "video_scaling": str(config_repository.get_app_config("viewer.video_scaling", "margin")),
+            "video_margin_pct": float(
+                config_repository.get_app_config("viewer.video_margin_pct", 6.0)
+            ),
         }
 
     @app.get("/api/overlay/appearance", tags=["Overlay"], summary="HDMI overlay appearance")
@@ -2172,6 +2207,13 @@ def create_app(
             config_repository.set_app_config("viewer.text_bg_color", p.text_bg_color)
         if p.text_bg_opacity is not None:
             config_repository.set_app_config("viewer.text_bg_opacity", float(p.text_bg_opacity))
+        if p.video_scaling is not None:
+            val = str(p.video_scaling).strip().lower()
+            if val in ("fit", "fill", "margin"):
+                config_repository.set_app_config("viewer.video_scaling", val)
+        if p.video_margin_pct is not None:
+            margin = max(0.0, min(45.0, float(p.video_margin_pct)))
+            config_repository.set_app_config("viewer.video_margin_pct", margin)
         # Description/date show-hide is expressed via text_overlay_format membership.
         if p.description_enabled is not None or p.date_enabled is not None:
             cur = str(config_repository.get_app_config("viewer.text_overlay_format", "description date"))

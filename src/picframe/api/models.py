@@ -705,6 +705,15 @@ class CatalogUpdateRequest(BaseModel):
     visible: bool | None = None
 
 
+class CatalogRotateRequest(BaseModel):
+    """Non-destructive manual rotation for one media item (Missao 06 updated)."""
+
+    action: str = Field(
+        default="right",
+        description="right | left | flip | auto (auto clears the override)",
+    )
+
+
 class CatalogBatchRequest(BaseModel):
     """Batch action over an explicit id list or a whole filtered result set."""
 
@@ -782,3 +791,6 @@ class OverlayAppearanceRequest(BaseModel):
     text_opacity: float | None = Field(default=None, ge=0.0, le=1.0)
     text_bg_color: str | None = None
     text_bg_opacity: float | None = Field(default=None, ge=0.0, le=1.0)
+    # Video presentation sizing (Missao 06 updated — item 1)
+    video_scaling: str | None = None
+    video_margin_pct: float | None = Field(default=None, ge=0.0, le=45.0)
