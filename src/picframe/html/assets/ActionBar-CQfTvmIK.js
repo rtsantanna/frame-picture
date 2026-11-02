@@ -1,0 +1,1 @@
+import{G as e,I as t,J as n,i as r}from"./index-C3I1BpRr.js";var i={},a={class:`flex w-full flex-wrap items-center justify-end gap-2 sm:gap-3 xl:w-auto`};function o(r,i){return e(),t(`div`,a,[n(r.$slots,`default`)])}var s=r(i,[[`render`,o]]);export{s as t};
