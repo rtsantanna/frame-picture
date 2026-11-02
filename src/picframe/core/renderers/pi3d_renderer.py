@@ -384,6 +384,7 @@ class Pi3dRenderer(IRenderer):
             clock_hgt_offset_pct=self._config.clock_hgt_offset_pct,
             clock_extra_source=self._config.clock_extra_source,
             clock_extra_text=self._config.clock_extra_text,
+            clock_color=getattr(self._config, "clock_color", "#f8fafc"),
             show_text=self._config.show_text_enabled if show_text is None else show_text,
             text_string=text_string,
             text_strings=text_strings,
@@ -391,6 +392,9 @@ class Pi3dRenderer(IRenderer):
             show_text_sz=self._config.show_text_sz,
             text_bkg_hgt=self._config.text_bkg_hgt,
             text_opacity=self._config.text_opacity,
+            text_color=getattr(self._config, "text_color", "#f8fafc"),
+            text_bg_color=getattr(self._config, "text_bg_color", "#000000"),
+            text_bg_opacity=getattr(self._config, "text_bg_opacity", 0.35),
             text_x_margin=self._config.text_x_margin,
             text_y_margin=self._config.text_y_margin,
         )

@@ -169,6 +169,7 @@ class OverlayConfig:
     clock_hgt_offset_pct: float = 3.0
     clock_extra_source: str = "off"
     clock_extra_text: str = ""
+    clock_color: str = "#f8fafc"
     show_text: bool = False
     text_string: str = ""
     text_strings: tuple[str, ...] = field(default_factory=tuple)
@@ -177,6 +178,9 @@ class OverlayConfig:
     show_text_sz: int = 40
     text_bkg_hgt: float = 0.25
     text_opacity: float = 1.0
+    text_color: str = "#f8fafc"
+    text_bg_color: str = "#000000"
+    text_bg_opacity: float = 0.35
     text_x_margin: int = 100
     text_y_margin: int = 0
 
