@@ -105,10 +105,45 @@ def _disk(path: str = "/data/photos") -> dict[str, int] | None:
 
 
 def _cgroup_mem() -> int | None:
+    # cgroups v2: prefer the container's own memory.current. With this project's
+    # ``network_mode: host`` setup the container sits in the root cgroup
+    # (``/proc/self/cgroup`` == ``0::/``) where ``memory.current`` is not
+    # exposed, so fall back to summing the RSS of the container's processes
+    # (the PID namespace only shows the container's own processes).
     raw = _read("/sys/fs/cgroup/memory.current")
     if raw and raw.strip().isdigit():
         return int(raw.strip())
-    return None
+    rel = ""
+    cg = _read("/proc/self/cgroup")
+    if cg:
+        rel = cg.strip().split("::")[-1].lstrip("/")
+    if rel:
+        raw = _read(f"/sys/fs/cgroup/{rel}/memory.current")
+        if raw and raw.strip().isdigit():
+            return int(raw.strip())
+    return _proc_rss_total()
+
+
+def _proc_rss_total() -> int | None:
+    total = 0
+    found = False
+    try:
+        pids = [p for p in os.listdir("/proc") if p.isdigit()]
+    except OSError:
+        return None
+    for pid in pids:
+        data = _read(f"/proc/{pid}/status")
+        if not data:
+            continue
+        for line in data.splitlines():
+            if line.startswith("VmRSS:"):
+                try:
+                    total += int(line.split()[1]) * 1024
+                    found = True
+                except (ValueError, IndexError):
+                    pass
+                break
+    return total if found else None
 
 
 def _cgroup_cpu_usec() -> int | None:

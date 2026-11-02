@@ -84,26 +84,15 @@ def main() -> int:
         _write_result(rel, "error", "download failed")
         return 1
 
-    # 2) validate format
-    ext = os.path.splitext(rel)[1].lower()
-    ok = True
-    if ext in (".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"):
-        try:
-            from PIL import Image
-
-            with Image.open(staged) as im:
-                im.verify()
-        except Exception as exc:
-            ok = False
-            _log(f"image validation failed {rel}: {exc}")
-    elif ext in (".mp4", ".mov", ".m4v", ".avi", ".mkv"):
-        probe = subprocess.run(
-            ["ffprobe", "-v", "error", "-show_entries", "format=duration", staged],
-            capture_output=True, text=True,
-        )
-        ok = probe.returncode == 0
-        if not ok:
-            _log(f"video validation failed {rel}")
+    # 2) validate integrity/format with exiftool (available on the host; it
+    # recognises both images and video containers). A recognised FileType means
+    # the staged download is a well-formed media file.
+    probe = subprocess.run(
+        ["exiftool", "-s3", "-FileType", staged], capture_output=True, text=True
+    )
+    ok = probe.returncode == 0 and bool(probe.stdout.strip())
+    if not ok:
+        _log(f"validation failed {rel}: exiftool rc={probe.returncode} out={probe.stdout.strip()!r}")
     if not ok:
         try:
             os.remove(staged)
