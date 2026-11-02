@@ -160,9 +160,33 @@ export const useCatalogStore = defineStore('catalog', () => {
     return `${api.defaults.baseURL}/catalog/thumbnail?rel_path=${encodeURIComponent(relPath)}`
   }
 
+  // --- Dropbox sync ---
+  const sync = ref<Record<string, unknown>>({ running: false, result: 'unknown' })
+  const divergences = ref<Array<Record<string, unknown>>>([])
+
+  async function fetchSync() {
+    try {
+      const { data } = await api.get('/sync/status')
+      sync.value = data
+    } catch { /* ignore */ }
+  }
+  async function syncNow() {
+    const { data } = await api.post('/sync/now')
+    await fetchSync()
+    return data
+  }
+  async function fetchDivergences() {
+    try {
+      const { data } = await api.get('/sync/divergences')
+      divergences.value = Array.isArray(data.items) ? data.items : []
+    } catch { /* ignore */ }
+  }
+
   return {
     items, total, stats, settings, loading, error, scanning,
+    sync, divergences,
     fetchStats, fetchList, fetchSettings, saveSettings, updateItem,
-    batchPreview, batch, scan, scanStatus, thumbUrl
+    batchPreview, batch, scan, scanStatus, thumbUrl,
+    fetchSync, syncNow, fetchDivergences
   }
 })
