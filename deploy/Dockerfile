@@ -1,4 +1,4 @@
-# Frame Picture — imagem do app PicFrame 2.0 (branch dev) sob labwc (Wayland-kiosk)
+# Frame Picture — imagem do app PicFrame 2.0 (fork local) sob labwc (Wayland-kiosk)
 # Base casando com o host (Debian 13 trixie ARM64). Mesa/driver vc4-v3d vem do host via /dev/dri.
 FROM debian:trixie-slim
 
@@ -28,11 +28,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # --- locale (o app tenta setar en_US.UTF-8) ---
 RUN sed -i 's/^# *en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && locale-gen
 
-# --- aplicacao: PicFrame 2.0 a partir do nosso fork/branch (inclui o frontend Vue ja compilado) ---
+# --- timezone America/Sao_Paulo ---
+# TZ (lido pela libc/Python) + /etc/localtime e /etc/timezone (apps que ignoram TZ).
+# tzdata ja vem como dependencia da stack; o zoneinfo America/Sao_Paulo esta presente.
+ENV TZ=America/Sao_Paulo
+RUN ln -sf /usr/share/zoneinfo/America/Sao_Paulo /etc/localtime \
+ && echo "America/Sao_Paulo" > /etc/timezone
+
+# --- aplicacao: PicFrame 2.0 a partir do codigo local do fork (inclui o frontend Vue ja compilado) ---
+# Instala a arvore de fontes presente no contexto de build (app-src/), sem depender de push ao GitHub.
 # Camada separada para nao reinstalar o sistema a cada mudanca de codigo.
-ARG PICFRAME_REF=framepicture
-RUN pip install --no-cache-dir --break-system-packages \
-      "git+https://github.com/rtsantanna/frame-picture.git@${PICFRAME_REF}"
+ARG PICFRAME_VERSION=2.0.0.dev0
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=${PICFRAME_VERSION}
+COPY app-src/ /opt/picframe-src/
+RUN pip install --no-cache-dir --break-system-packages /opt/picframe-src \
+ && rm -rf /opt/picframe-src
 
 # start.sh e labwc-rc.xml sao montados via compose (editaveis sem rebuild)
 CMD ["/bin/bash"]

@@ -8,6 +8,7 @@ services:
       dockerfile: Dockerfile
     image: framepicture:latest
     container_name: framepicture
+    hostname: frame-picture   # identidade propria do container (nao herda o hostname do host)
     restart: "no"            # durante os testes; vira unless-stopped na producao
     network_mode: host        # painel web acessivel na LAN do Pi (porta 9000); sem exposicao externa
     cap_add:
@@ -38,6 +39,7 @@ services:
       - PICFRAME_DIR=/root/.picframe
       - PIC_DIR=/data/photos
       - LANG=en_US.UTF-8
+      - TZ=America/Sao_Paulo   # fuso do container (reforca o ENV/localtime da imagem)
     command: ["/bin/bash", "/start.sh"]
 
 volumes:
