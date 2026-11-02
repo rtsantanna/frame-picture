@@ -1,0 +1,1 @@
+import{F as e,W as t,i as n,q as r}from"./index-BBHgcnnn.js";var i={},a={class:`flex w-full flex-wrap items-center justify-end gap-2 sm:gap-3 xl:w-auto`};function o(n,i){return t(),e(`div`,a,[r(n.$slots,`default`)])}var s=n(i,[[`render`,o]]);export{s as t};
