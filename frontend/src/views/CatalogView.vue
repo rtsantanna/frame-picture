@@ -256,7 +256,7 @@ function fmtTs(ts: unknown): string {
 </script>
 
 <template>
-  <div class="mx-auto max-w-[1400px] space-y-5 p-4 sm:p-6">
+  <div class="mx-auto max-w-full space-y-5 p-4 sm:p-6">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
         <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Catálogo de Memórias</h1>
@@ -417,10 +417,11 @@ function fmtTs(ts: unknown): string {
                 class="w-40 rounded border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-700 dark:text-white" />
             </td>
             <td class="p-2"><span class="rounded-full px-2 py-0.5 text-[11px] font-semibold" :class="statusChip[it.status]">{{ statusLabel[it.status] }}</span></td>
-            <td class="p-2">
-              <button type="button" class="text-xs font-medium" :class="it.visible === 1 ? 'text-emerald-600' : 'text-gray-400'" @click="toggleVisible(it)">
-                {{ it.visible === 1 ? 'ON' : 'OFF' }}
-              </button>
+            <td class="p-2 text-center">
+              <input type="checkbox" class="h-4 w-4 cursor-pointer accent-emerald-600"
+                :checked="it.visible === 1"
+                :title="it.visible === 1 ? 'Exibir na apresentação' : 'Oculto da apresentação'"
+                @change="toggleVisible(it)" />
             </td>
             <td class="p-2">
               <div class="flex gap-1">

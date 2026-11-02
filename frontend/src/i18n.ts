@@ -5,9 +5,9 @@ import ptBR from './locales/pt-BR.json'
 // Missao 06 (atualizada): only two public locales are offered — pt-BR (default)
 // and en-US. es-ES / de-DE were dropped. Any key missing from pt-BR falls back
 // to en-US so the UI never shows a raw key.
-export const LOCALES: Array<{ code: string; label: string }> = [
-  { code: 'pt-BR', label: 'Português (Brasil)' },
-  { code: 'en-US', label: 'English (United States)' }
+export const LOCALES: Array<{ code: string; label: string; flag: string }> = [
+  { code: 'pt-BR', label: 'Português (Brasil)', flag: '🇧🇷' },
+  { code: 'en-US', label: 'English (United States)', flag: '🇺🇸' }
 ]
 
 const STORAGE_KEY = 'framepicture.locale'

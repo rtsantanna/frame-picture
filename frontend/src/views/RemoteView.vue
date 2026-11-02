@@ -3,6 +3,7 @@ import { onBeforeUnmount, onMounted, computed, reactive, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { usePlayerStore } from '../stores/player'
 import type { MediaItem } from '../stores/player'
+import { useCatalogStore } from '../stores/catalog'
 import { useConfigStore } from '../stores/config'
 import type { LocationOption } from '../stores/config'
 import { useI18n } from 'vue-i18n'
@@ -21,6 +22,7 @@ import {
   ArrowsPointingOutIcon,
   MagnifyingGlassIcon,
   ArrowPathIcon,
+  ArrowUturnRightIcon,
   VideoCameraIcon
 } from '@heroicons/vue/24/outline'
 import {
@@ -40,7 +42,33 @@ import StatusBanner from '../components/ui/StatusBanner.vue'
 const { t } = useI18n()
 const playerStore = usePlayerStore()
 const configStore = useConfigStore()
+const catalogStore = useCatalogStore()
 const { currentMedia, isPlaying, brightness, isDisplayOn } = storeToRefs(playerStore)
+
+// Rotate the currently displayed photo (non-destructive) straight from the
+// Remote, then ask the renderer to re-draw it in place via the RELOAD command.
+const canRotateCurrent = computed(() => {
+  const m = currentMedia.value
+  return !!m && (m.media_type ?? 'image') !== 'video' && !!m.file_path
+})
+const isRotatingCurrent = ref(false)
+async function rotateCurrent() {
+  const m = currentMedia.value
+  if (!m?.file_path || !canRotateCurrent.value) return
+  const picDir = (appConfig.value?.model?.pic_dir as string | undefined) || ''
+  let rel = m.file_path
+  if (picDir && rel.startsWith(picDir)) rel = rel.slice(picDir.length).replace(/^\/+/, '')
+  else rel = rel.split('/').pop() || rel
+  isRotatingCurrent.value = true
+  try {
+    await catalogStore.rotateItem(rel, 'right')
+    playerStore.sendCommand('RELOAD')
+  } catch {
+    /* surfaced elsewhere */
+  } finally {
+    isRotatingCurrent.value = false
+  }
+}
 const {
   config: appConfig,
   filterOptions,
@@ -1213,6 +1241,18 @@ const metadataFields = computed(() => {
               >
                 <ForwardIcon class="w-7 h-7" />
                 <span class="sr-only">{{ t('remote.controls.next') }}</span>
+              </button>
+
+              <button
+                type="button"
+                :disabled="!canRotateCurrent || isRotatingCurrent"
+                class="inline-flex h-14 w-14 items-center justify-center rounded-full text-gray-500 transition-all hover:bg-gray-100 hover:text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 dark:text-gray-400 dark:hover:bg-gray-700/50 dark:hover:text-indigo-400"
+                :aria-label="t('remote.controls.rotate')"
+                :title="t('remote.controls.rotate')"
+                @click="rotateCurrent"
+              >
+                <ArrowUturnRightIcon class="w-6 h-6" />
+                <span class="sr-only">{{ t('remote.controls.rotate') }}</span>
               </button>
 
               <div ref="shuffleModeMenuRef" class="relative inline-flex justify-self-center">

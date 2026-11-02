@@ -167,7 +167,8 @@
       "shuffleModeFewerRepeats": "Menos repetições",
       "shuffleModeAgeWeighted": "Ponderado por idade",
       "restartPlaylist": "Reiniciar lista",
-      "reshuffleNow": "Reembaralhar agora"
+      "reshuffleNow": "Reembaralhar agora",
+      "rotate": "Rotacionar foto atual"
     },
     "overlays": {
       "title": "Sobreposições de texto",

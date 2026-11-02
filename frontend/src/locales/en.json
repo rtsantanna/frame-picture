@@ -167,7 +167,8 @@
       "shuffleModeFewerRepeats": "Fewer repeats",
       "shuffleModeAgeWeighted": "Age weighted",
       "restartPlaylist": "Restart playlist",
-      "reshuffleNow": "Reshuffle now"
+      "reshuffleNow": "Reshuffle now",
+      "rotate": "Rotate current photo"
     },
     "overlays": {
       "title": "Text Overlays",
