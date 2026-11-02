@@ -4,6 +4,7 @@ GStreamer Video Renderer implementation (IPC Client).
 
 from __future__ import annotations
 
+import glob
 import logging
 import os
 import stat
@@ -11,6 +12,7 @@ import subprocess
 import sys
 import threading
 import time
+import uuid
 from collections import deque
 from multiprocessing.connection import Client, Connection
 from pathlib import Path
@@ -45,6 +47,8 @@ from picframe.core.renderers.ipc_protocol import (
 logger = logging.getLogger(__name__)
 _WORKER_SOCKET_TIMEOUT_SECONDS = 20.0
 _WORKER_SOCKET_POLL_SECONDS = 0.1
+_WORKER_CONNECT_RETRY_SECONDS = 2.0
+_WORKER_CONNECT_RETRY_INTERVAL = 0.05
 
 
 class GstVideoRenderer(IVideoPlayer):
@@ -68,7 +72,7 @@ class GstVideoRenderer(IVideoPlayer):
         self._content_fit: str | None = None
         self._volume: float = 1.0
 
-        self._socket_path = f"/tmp/picframe_gst_{os.getpid()}.sock"
+        self._socket_path = self._make_socket_path()
         self._worker_process: subprocess.Popen[str] | None = None
         self._conn: Connection | None = None
         self._running = False
@@ -77,6 +81,65 @@ class GstVideoRenderer(IVideoPlayer):
         self._worker_log_tail: deque[str] = deque(maxlen=20)
 
         self._start_worker()
+
+    @staticmethod
+    def _socket_dir() -> str:
+        """Prefer the per-user runtime dir (tmpfs, cleared on logout) for the
+        IPC socket; fall back to ``/tmp`` when it is unavailable."""
+        runtime_dir = os.environ.get("XDG_RUNTIME_DIR")
+        if runtime_dir and os.path.isdir(runtime_dir):
+            return runtime_dir
+        return "/tmp"
+
+    def _make_socket_path(self) -> str:
+        """Build a unique IPC socket path, reaping our own stale leftovers.
+
+        The socket name used to key only on the parent PID. PIDs are recycled
+        across container restarts and ``/tmp`` survives ``docker restart``, so a
+        leaked socket from a previous run could still sit at the computed path.
+        The parent's ``os.path.exists`` wait would then fire on that stale file
+        and ``Client()`` would connect to a dead inode (ECONNREFUSED) before the
+        fresh worker had a chance to unlink and rebind. A random token makes the
+        name collision-proof. Any ``picframe_gst_<ourpid>*.sock`` present now can
+        only be a leftover from a dead process that previously held this PID, so
+        it is safe to remove and keeps the runtime dir from accumulating cruft.
+        """
+        directory = self._socket_dir()
+        pid = os.getpid()
+        for stale in glob.glob(os.path.join(directory, f"picframe_gst_{pid}_*.sock")):
+            self._safe_unlink(stale)
+        self._safe_unlink(os.path.join(directory, f"picframe_gst_{pid}.sock"))
+        return os.path.join(directory, f"picframe_gst_{pid}_{uuid.uuid4().hex[:8]}.sock")
+
+    @staticmethod
+    def _safe_unlink(path: str) -> None:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+
+    def _connect_with_retry(self) -> Connection:
+        """Connect to the worker's IPC socket, tolerating the brief window
+        between the worker's ``bind()`` (which creates the socket file) and
+        ``listen()`` becoming ready, which can surface as ECONNREFUSED on a slow
+        Pi and during worker recovery."""
+        deadline = time.monotonic() + _WORKER_CONNECT_RETRY_SECONDS
+        while True:
+            try:
+                return Client(self._socket_path, family="AF_UNIX")
+            except (ConnectionRefusedError, FileNotFoundError) as exc:
+                if (
+                    self._worker_process is not None
+                    and self._worker_process.poll() is not None
+                ):
+                    raise RuntimeError(
+                        "GStreamer worker exited during IPC connect (exit code "
+                        f"{self._worker_process.returncode})."
+                        f"{self._worker_log_summary()}"
+                    ) from exc
+                if time.monotonic() >= deadline:
+                    raise
+                time.sleep(_WORKER_CONNECT_RETRY_INTERVAL)
 
     def _start_worker(self) -> None:
         """Spawn the GStreamer worker subprocess and establish IPC connection."""
@@ -122,7 +185,7 @@ class GstVideoRenderer(IVideoPlayer):
                     f"{self._worker_log_summary()}"
                 )
 
-            self._conn = Client(self._socket_path, family="AF_UNIX")
+            self._conn = self._connect_with_retry()
             self._running = True
 
             self._listener_thread = threading.Thread(target=self._listen_for_events, daemon=True)
