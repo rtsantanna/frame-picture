@@ -394,7 +394,7 @@ function fmtTs(ts: unknown): string {
             <td class="p-2"><input type="checkbox" :checked="selected.has(it.rel_path) || selectAllResults" @change="toggleRow(it.rel_path)" /></td>
             <td class="p-2">
               <div class="relative h-12 w-12">
-                <img :src="store.thumbUrl(it.rel_path)" loading="lazy"
+                <img :src="store.thumbUrl(it.rel_path, it.manual_rotation)" loading="lazy"
                   class="h-12 w-12 rounded bg-gray-100 object-cover dark:bg-gray-700" alt=""
                   @error="($event.target as HTMLImageElement).style.visibility='hidden'" />
                 <span v-if="it.media_type === 'video'"
@@ -502,7 +502,7 @@ function fmtTs(ts: unknown): string {
         <h3 class="text-lg font-bold text-gray-900 dark:text-white">Rotacionar — <span class="font-mono text-sm">{{ rotateItemRef?.filename }}</span></h3>
         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Correção visual não destrutiva (o arquivo original não é alterado). Pré-visualização abaixo.</p>
         <div class="mt-4 flex h-56 items-center justify-center overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-900">
-          <img v-if="rotateItemRef" :src="store.thumbUrl(rotateItemRef.rel_path)"
+          <img v-if="rotateItemRef" :src="store.thumbUrl(rotateItemRef.rel_path, rotateSaved)"
             class="max-h-48 max-w-[90%] object-contain transition-transform duration-200"
             :style="{ transform: 'rotate(' + rotatePreviewDelta + 'deg)' }" alt="" />
         </div>

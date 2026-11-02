@@ -167,8 +167,10 @@ export const useCatalogStore = defineStore('catalog', () => {
     }
   }
 
-  function thumbUrl(relPath: string): string {
-    return `${api.defaults.baseURL}/catalog/thumbnail?rel_path=${encodeURIComponent(relPath)}`
+  function thumbUrl(relPath: string, rotation = 0): string {
+    // Include the manual rotation so the browser refetches when it changes
+    // (the server already keys its own cache on rotation).
+    return `${api.defaults.baseURL}/catalog/thumbnail?rel_path=${encodeURIComponent(relPath)}&r=${rotation || 0}`
   }
 
   async function fetchHistory(relPath: string): Promise<Array<Record<string, unknown>>> {
