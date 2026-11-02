@@ -20,6 +20,11 @@ const router = createRouter({
       component: () => import('../views/SettingsView.vue')
     },
     {
+      path: '/optimizer',
+      name: 'optimizer',
+      component: () => import('../views/OptimizerView.vue')
+    },
+    {
       path: '/logs',
       name: 'logs',
       component: () => import('../views/LogsView.vue')

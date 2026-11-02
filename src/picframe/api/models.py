@@ -603,3 +603,73 @@ class SystemErrorWebSocketMessage(BaseModel):
     component: str
     sticky: bool = False
     code: str | None = None
+
+
+class OptimizerConfig(BaseModel):
+    """Persisted photo-optimizer configuration."""
+
+    enabled: bool = Field(
+        default=False, description="Whether automatic optimization (sync/schedule) is enabled."
+    )
+    max_width: int = Field(default=1920, ge=320, le=7680, description="Maximum output width in px.")
+    max_height: int = Field(
+        default=1080, ge=240, le=4320, description="Maximum output height in px."
+    )
+    quality: int = Field(default=90, ge=40, le=100, description="JPEG quality (1-100).")
+    pic_dir: str = Field(default="", description="Library directory being optimized.")
+
+
+class OptimizerConfigRequest(BaseModel):
+    """Partial update for the photo-optimizer configuration."""
+
+    enabled: bool | None = None
+    max_width: int | None = Field(default=None, ge=320, le=7680)
+    max_height: int | None = Field(default=None, ge=240, le=4320)
+    quality: int | None = Field(default=None, ge=40, le=100)
+
+
+class OptimizerRunRequest(BaseModel):
+    """Request to start an optimizer run."""
+
+    mode: Literal["scan", "apply", "verify"] = Field(
+        default="scan",
+        description="scan = dry-run report, apply = rewrite in place, verify = integrity re-check.",
+    )
+
+
+class OptimizerProgress(BaseModel):
+    """Live progress for an in-flight optimizer run."""
+
+    current: int = 0
+    total: int = 0
+    file: str = ""
+
+
+class OptimizerRunResultModel(BaseModel):
+    """Outcome of a single optimizer run."""
+
+    mode: str = "scan"
+    analyzed: int = 0
+    resized: int = 0
+    already_ok: int = 0
+    skipped_unsupported: int = 0
+    errors: int = 0
+    bytes_before: int = 0
+    bytes_after: int = 0
+    bytes_saved: int = 0
+    duration_s: float = 0.0
+    ok: bool = True
+    details: list[dict[str, Any]] = Field(default_factory=list)
+    error_list: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class OptimizerStatusResponse(BaseModel):
+    """Current/last optimizer run plus effective configuration."""
+
+    running: bool = False
+    mode: str = "none"
+    started_at: float | None = None
+    finished_at: float | None = None
+    progress: OptimizerProgress = Field(default_factory=OptimizerProgress)
+    last_result: OptimizerRunResultModel | None = None
+    config: OptimizerConfig = Field(default_factory=OptimizerConfig)

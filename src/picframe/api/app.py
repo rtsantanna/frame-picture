@@ -54,6 +54,10 @@ from picframe.api.models import (
     MediaResponseDTO,
     MediaSelectionCountRequest,
     MediaSelectionCountResponse,
+    OptimizerConfig,
+    OptimizerConfigRequest,
+    OptimizerRunRequest,
+    OptimizerStatusResponse,
     OverlayDockLayoutUpdateResponse,
     OverlayPluginConfigResponse,
     OverlayPluginConfigUpdateResponse,
@@ -146,6 +150,10 @@ OPENAPI_TAGS = [
         "name": "Overlay",
         "description": "WebKitGTK touch overlay plugin discovery and per-plugin config.",
     },
+    {
+        "name": "Optimizer",
+        "description": "In-place photo library optimization (resize originals, save space).",
+    },
 ]
 BAD_REQUEST_RESPONSE: dict[int | str, dict[str, Any]] = {
     400: {"model": APIErrorResponse, "description": "Invalid request for the endpoint."},
@@ -175,6 +183,7 @@ AUTH_PROTECTED_API_PREFIXES = (
     "/api/filesystem",
     "/api/hardware-inputs",
     "/api/maintenance",
+    "/api/optimizer",
     "/api/auth/config",
 )
 # Per-plugin overlay config/layout routes (`/api/overlay/plugins/<id>/config` and
@@ -1137,6 +1146,7 @@ def create_app(
     auth_store: BasicAuthStore | None = None,
     system_manager: ISystemManager | None = None,
     overlay_controller: IOverlayController | None = None,
+    photo_optimizer_service: Any | None = None,
 ) -> FastAPI:
     """
     Create and configure the FastAPI application instance.
@@ -1660,6 +1670,59 @@ def create_app(
             }
         image_processing_service.clear_cache()
         return {"status": "cache cleared"}
+
+    @app.get(
+        "/api/optimizer/status",
+        response_model=OptimizerStatusResponse,
+        tags=["Optimizer"],
+        summary="Photo optimizer status",
+        description=(
+            "Return the current/last in-place photo optimization run and the effective "
+            "optimizer configuration."
+        ),
+    )
+    async def api_optimizer_status() -> dict[str, Any]:
+        if photo_optimizer_service is None:
+            return OptimizerStatusResponse().model_dump()
+        return photo_optimizer_service.get_status()
+
+    @app.put(
+        "/api/optimizer/config",
+        response_model=OptimizerConfig,
+        tags=["Optimizer"],
+        summary="Update photo optimizer settings",
+        description="Persist max resolution, JPEG quality and the automatic-optimization toggle.",
+        responses={**BAD_REQUEST_RESPONSE},
+    )
+    async def api_optimizer_set_config(payload: OptimizerConfigRequest) -> dict[str, Any]:
+        if photo_optimizer_service is None:
+            raise HTTPException(status_code=503, detail="Photo optimizer service unavailable")
+        return photo_optimizer_service.set_config(
+            enabled=payload.enabled,
+            max_width=payload.max_width,
+            max_height=payload.max_height,
+            quality=payload.quality,
+        )
+
+    @app.post(
+        "/api/optimizer/run",
+        response_model=StatusMessageResponse,
+        response_model_exclude_none=True,
+        tags=["Optimizer"],
+        summary="Run the photo optimizer",
+        description=(
+            "Start a background optimization run. `scan` reports without changing files, "
+            "`apply` rewrites originals in place, `verify` re-reads every file to confirm "
+            "integrity. Returns `busy` when a run is already in progress."
+        ),
+    )
+    async def api_optimizer_run(payload: OptimizerRunRequest) -> dict[str, str]:
+        if photo_optimizer_service is None:
+            return {"status": "error", "message": "Photo optimizer service unavailable"}
+        started = photo_optimizer_service.start_run(payload.mode)
+        if not started:
+            return {"status": "busy", "message": "An optimization run is already in progress."}
+        return {"status": "started", "message": f"Optimization run started (mode={payload.mode})."}
 
     @app.get(
         "/api/system/locales",

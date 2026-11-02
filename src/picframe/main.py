@@ -26,6 +26,7 @@ from picframe.core.services.config_service import ConfigService
 from picframe.core.services.hardware_input import HardwareInputService
 from picframe.core.services.image_processing import ImageProcessingService
 from picframe.core.services.logging_service import PicframeLoggingService
+from picframe.core.services.photo_optimizer import PhotoOptimizerService
 from picframe.core.services.playlist import PlaylistManager
 from picframe.core.services.renderer_assets import validate_renderer_assets
 from picframe.core.services.resource_paths import (
@@ -262,6 +263,7 @@ def run_picframe(
     # 7. Initialize Web Server
     http_config = nested_config.get("http", {})
     cors_origins = http_config.get("cors_allowed_origins", ["*"])
+    photo_optimizer_service = PhotoOptimizerService(config_repository=_config_repo)
     app = create_app(
         event_publisher=event_bus,
         event_subscriber=event_bus,
@@ -274,6 +276,7 @@ def run_picframe(
         log_event_buffer=logging_service.buffer,
         system_manager=hal_adapters.system_manager,
         overlay_controller=overlay_controller,
+        photo_optimizer_service=photo_optimizer_service,
     )
     web_server = WebServer(app, port=port)
 

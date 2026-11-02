@@ -17,6 +17,7 @@ const navItems = computed(() => [
   { to: '/', label: t('nav.remote'), shortLabel: t('nav.remote') },
   { to: '/appearance', label: t('nav.appearance'), shortLabel: t('nav.appearanceShort') },
   { to: '/settings', label: t('nav.settings'), shortLabel: t('nav.settings') },
+  { to: '/optimizer', label: t('nav.optimizer'), shortLabel: t('nav.optimizerShort') },
   { to: '/logs', label: t('nav.logs'), shortLabel: t('nav.logs') }
 ])
 
