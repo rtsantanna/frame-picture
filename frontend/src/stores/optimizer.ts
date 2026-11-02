@@ -14,6 +14,7 @@ export interface OptimizerConfig {
   max_width: number
   max_height: number
   quality: number
+  preserve_aspect: boolean
   pic_dir: string
 }
 
@@ -50,7 +51,14 @@ const EMPTY_STATUS: OptimizerStatus = {
   finished_at: null,
   progress: { current: 0, total: 0, file: '' },
   last_result: null,
-  config: { enabled: false, max_width: 1920, max_height: 1080, quality: 90, pic_dir: '' }
+  config: {
+    enabled: false,
+    max_width: 1920,
+    max_height: 1080,
+    quality: 90,
+    preserve_aspect: true,
+    pic_dir: ''
+  }
 }
 
 export const useOptimizerStore = defineStore('optimizer', () => {

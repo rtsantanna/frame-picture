@@ -21,10 +21,18 @@ const form = reactive({
   enabled: false,
   max_width: 1920,
   max_height: 1080,
-  quality: 90
+  quality: 90,
+  preserve_aspect: true
 })
 const configDirty = ref(false)
+// Box ratio (height / width) kept while "preserve aspect" is on, so adjusting
+// the max width recomputes a proportional max height (default 1920x1080 = 16:9).
+const lockedRatio = ref(1080 / 1920)
 let poller: number | undefined
+
+function clampHeight(value: number): number {
+  return Math.max(240, Math.min(4320, Math.round(value)))
+}
 
 const status = computed(() => store.status)
 const running = computed(() => store.status.running)
@@ -43,6 +51,8 @@ watch(
     form.max_width = config.max_width
     form.max_height = config.max_height
     form.quality = config.quality
+    form.preserve_aspect = config.preserve_aspect
+    if (config.max_width > 0) lockedRatio.value = config.max_height / config.max_width
   },
   { immediate: true, deep: true }
 )
@@ -51,12 +61,31 @@ function markDirty() {
   configDirty.value = true
 }
 
+function onWidthChange(value: number) {
+  form.max_width = value
+  if (form.preserve_aspect) form.max_height = clampHeight(value * lockedRatio.value)
+  markDirty()
+}
+
+function onHeightChange(value: number) {
+  form.max_height = value
+  markDirty()
+}
+
+function onPreserveChange(value: boolean) {
+  form.preserve_aspect = value
+  // Re-capture the current box ratio when turning the lock back on.
+  if (value && form.max_width > 0) lockedRatio.value = form.max_height / form.max_width
+  markDirty()
+}
+
 async function saveConfig() {
   await store.saveConfig({
     enabled: form.enabled,
     max_width: form.max_width,
     max_height: form.max_height,
-    quality: form.quality
+    quality: form.quality,
+    preserve_aspect: form.preserve_aspect
   })
   configDirty.value = false
 }
@@ -207,6 +236,22 @@ onBeforeUnmount(() => {
         />
       </div>
 
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <p class="text-sm font-medium text-gray-900 dark:text-gray-100">
+            {{ t('optimizer.preserveAspect') }}
+          </p>
+          <p class="text-xs text-gray-500 dark:text-gray-400">
+            {{ t('optimizer.preserveAspectHelp') }}
+          </p>
+        </div>
+        <ToggleSwitch
+          :model-value="form.preserve_aspect"
+          :label="t('optimizer.preserveAspect')"
+          @update:model-value="onPreserveChange"
+        />
+      </div>
+
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <label class="space-y-1">
           <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -218,30 +263,31 @@ onBeforeUnmount(() => {
             :max="7680"
             :step="10"
             unit="px"
-            @update:model-value="
-              value => {
-                form.max_width = value
-                markDirty()
-              }
-            "
+            @update:model-value="onWidthChange"
           />
         </label>
         <label class="space-y-1">
           <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
             {{ t('optimizer.maxHeight') }}
           </span>
+          <!-- Locked: height is derived from width; editable only when the user
+               opts into independent sizing. -->
+          <div
+            v-if="form.preserve_aspect"
+            class="flex h-10 items-center justify-between rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 text-sm text-gray-600 dark:border-gray-600 dark:bg-gray-900/40 dark:text-gray-300"
+            :title="t('optimizer.maxHeightDerived')"
+          >
+            <span class="font-mono">{{ form.max_height }} px</span>
+            <span class="text-xs text-gray-400 dark:text-gray-500">{{ t('optimizer.auto') }}</span>
+          </div>
           <NumberField
+            v-else
             :model-value="form.max_height"
             :min="240"
             :max="4320"
             :step="10"
             unit="px"
-            @update:model-value="
-              value => {
-                form.max_height = value
-                markDirty()
-              }
-            "
+            @update:model-value="onHeightChange"
           />
         </label>
         <label class="space-y-1">
@@ -261,6 +307,14 @@ onBeforeUnmount(() => {
             "
           />
         </label>
+      </div>
+
+      <div
+        v-if="!form.preserve_aspect"
+        class="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300"
+      >
+        <span>⚠️</span>
+        <span>{{ t('optimizer.distortionWarning') }}</span>
       </div>
 
       <div class="flex items-center gap-3">

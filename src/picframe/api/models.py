@@ -616,6 +616,10 @@ class OptimizerConfig(BaseModel):
         default=1080, ge=240, le=4320, description="Maximum output height in px."
     )
     quality: int = Field(default=90, ge=40, le=100, description="JPEG quality (1-100).")
+    preserve_aspect: bool = Field(
+        default=True,
+        description="Keep the original aspect ratio (fit within the box, never stretch).",
+    )
     pic_dir: str = Field(default="", description="Library directory being optimized.")
 
 
@@ -626,6 +630,7 @@ class OptimizerConfigRequest(BaseModel):
     max_width: int | None = Field(default=None, ge=320, le=7680)
     max_height: int | None = Field(default=None, ge=240, le=4320)
     quality: int | None = Field(default=None, ge=40, le=100)
+    preserve_aspect: bool | None = None
 
 
 class OptimizerRunRequest(BaseModel):

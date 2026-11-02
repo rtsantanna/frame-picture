@@ -1702,6 +1702,7 @@ def create_app(
             max_width=payload.max_width,
             max_height=payload.max_height,
             quality=payload.quality,
+            preserve_aspect=payload.preserve_aspect,
         )
 
     @app.post(

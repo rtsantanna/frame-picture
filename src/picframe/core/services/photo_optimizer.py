@@ -40,11 +40,13 @@ CFG_ENABLED = "optimizer.enabled"
 CFG_MAX_WIDTH = "optimizer.max_width"
 CFG_MAX_HEIGHT = "optimizer.max_height"
 CFG_QUALITY = "optimizer.quality"
+CFG_PRESERVE_ASPECT = "optimizer.preserve_aspect"
 CFG_PIC_DIR = "model.pic_dir"
 
 DEFAULT_MAX_WIDTH = 1920
 DEFAULT_MAX_HEIGHT = 1080
 DEFAULT_QUALITY = 90
+DEFAULT_PRESERVE_ASPECT = True
 
 # Keep the per-file detail list bounded so status payloads stay small.
 _MAX_DETAILS = 200
@@ -85,10 +87,21 @@ class OptimizerRunResult:
         }
 
 
-def target_size(width: int, height: int, max_w: int, max_h: int) -> tuple[int, int]:
-    """Dimensions to fit within ``(max_w, max_h)`` preserving aspect; never upscales."""
-    scale = min(max_w / width, max_h / height, 1.0)
-    return (max(1, round(width * scale)), max(1, round(height * scale)))
+def target_size(
+    width: int, height: int, max_w: int, max_h: int, preserve_aspect: bool = True
+) -> tuple[int, int]:
+    """Target dimensions for the optimizer. Never upscales.
+
+    With ``preserve_aspect`` (the default) the image is scaled down uniformly to
+    fit within ``(max_w, max_h)``, so it is never stretched or cropped. Without
+    it, each axis is capped independently at its own maximum, which can change
+    the aspect ratio -- the caller surfaces that as a possible distortion in the
+    web panel. Either way an image already within bounds is left untouched.
+    """
+    if preserve_aspect:
+        scale = min(max_w / width, max_h / height, 1.0)
+        return (max(1, round(width * scale)), max(1, round(height * scale)))
+    return (min(width, max_w), min(height, max_h))
 
 
 class PhotoOptimizerService:
@@ -118,6 +131,9 @@ class PhotoOptimizerService:
                 self._config.get_app_config(CFG_MAX_HEIGHT), DEFAULT_MAX_HEIGHT
             ),
             "quality": self._as_int(self._config.get_app_config(CFG_QUALITY), DEFAULT_QUALITY),
+            "preserve_aspect": self._config.get_app_config_bool(
+                CFG_PRESERVE_ASPECT, DEFAULT_PRESERVE_ASPECT
+            ),
             "pic_dir": str(self._config.get_app_config(CFG_PIC_DIR) or ""),
         }
 
@@ -127,6 +143,7 @@ class PhotoOptimizerService:
         max_width: int | None = None,
         max_height: int | None = None,
         quality: int | None = None,
+        preserve_aspect: bool | None = None,
     ) -> dict[str, Any]:
         """Persist optimizer settings. Only provided fields are updated."""
         if enabled is not None:
@@ -137,6 +154,8 @@ class PhotoOptimizerService:
             self._config.set_app_config(CFG_MAX_HEIGHT, self._clamp(max_height, 240, 4320))
         if quality is not None:
             self._config.set_app_config(CFG_QUALITY, self._clamp(quality, 40, 100))
+        if preserve_aspect is not None:
+            self._config.set_app_config(CFG_PRESERVE_ASPECT, bool(preserve_aspect))
         return self.get_config()
 
     # -- status ------------------------------------------------------------
@@ -232,7 +251,13 @@ class PhotoOptimizerService:
                 self._progress_current = index
                 self._progress_file = os.path.basename(path)
             self._process_file(
-                path, cfg["max_width"], cfg["max_height"], cfg["quality"], apply, result
+                path,
+                cfg["max_width"],
+                cfg["max_height"],
+                cfg["quality"],
+                cfg["preserve_aspect"],
+                apply,
+                result,
             )
         result.duration_s = time.time() - start
         return result
@@ -254,6 +279,7 @@ class PhotoOptimizerService:
         max_w: int,
         max_h: int,
         quality: int,
+        preserve_aspect: bool,
         apply: bool,
         result: OptimizerRunResult,
     ) -> None:
@@ -267,8 +293,13 @@ class PhotoOptimizerService:
                 probe.verify()
             with Image.open(path) as src:
                 image = ImageOps.exif_transpose(src)
+                # Preserve relevant metadata across the rewrite. exif_transpose
+                # already normalised the Orientation tag on the returned image's
+                # EXIF, so re-embedding it will not double-rotate the pixels.
+                exif = image.info.get("exif")
+                icc = image.info.get("icc_profile") or src.info.get("icc_profile")
                 orig_w, orig_h = image.size
-                new_w, new_h = target_size(orig_w, orig_h, max_w, max_h)
+                new_w, new_h = target_size(orig_w, orig_h, max_w, max_h, preserve_aspect)
                 if (new_w, new_h) == (orig_w, orig_h):
                     result.already_ok += 1
                     self._append_detail(
@@ -281,7 +312,7 @@ class PhotoOptimizerService:
                 handle, tmp = tempfile.mkstemp(prefix=".fp_opt_", suffix=ext, dir=directory)
                 os.close(handle)
                 try:
-                    self._save(resized, tmp, ext, quality)
+                    self._save(resized, tmp, ext, quality, exif, icc)
                     # 2) Validate the generated file before touching the original.
                     with Image.open(tmp) as check:
                         check.verify()
@@ -319,12 +350,33 @@ class PhotoOptimizerService:
             logger.warning("Photo optimizer could not process %s: %s", name, exc)
 
     @staticmethod
-    def _save(image: Image.Image, dest: str, ext: str, quality: int) -> None:
+    def _save(
+        image: Image.Image,
+        dest: str,
+        ext: str,
+        quality: int,
+        exif: bytes | None = None,
+        icc: bytes | None = None,
+    ) -> None:
+        # Only pass metadata kwargs when present: Pillow rejects ``exif=None`` on
+        # some versions and an empty ICC profile is meaningless.
+        save_kwargs: dict[str, Any] = {}
+        if exif:
+            save_kwargs["exif"] = exif
+        if icc:
+            save_kwargs["icc_profile"] = icc
         if ext in (".jpg", ".jpeg"):
             out = image if image.mode in ("RGB", "L") else image.convert("RGB")
-            out.save(dest, format="JPEG", quality=quality, optimize=True, progressive=True)
+            out.save(
+                dest,
+                format="JPEG",
+                quality=quality,
+                optimize=True,
+                progressive=True,
+                **save_kwargs,
+            )
         else:  # .png
-            image.save(dest, format="PNG", optimize=True)
+            image.save(dest, format="PNG", optimize=True, **save_kwargs)
 
     @staticmethod
     def _append_detail(result: OptimizerRunResult, detail: dict[str, Any]) -> None:
