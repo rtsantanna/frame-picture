@@ -746,3 +746,16 @@ class NightKeepOnRequest(BaseModel):
     """Toggle the one-night 'keep monitor on tonight' exception."""
 
     enable: bool = True
+
+
+# ---------------------------------------------------------------------------
+# Dropbox sync scheduler (web-managed crontab) — Missao 05 item 5
+# ---------------------------------------------------------------------------
+
+
+class SchedulerDropboxRequest(BaseModel):
+    """Update the Dropbox auto-sync schedule (applied to the real crontab)."""
+
+    enabled: bool | None = None
+    # A preset key (5m,10m,15m,30m,1h,2h,6h,12h,24h) or a validated cron string.
+    frequency: str | None = None

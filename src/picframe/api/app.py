@@ -9,6 +9,7 @@ import asyncio
 import json
 import logging
 import mimetypes
+import re
 import subprocess
 from collections.abc import Iterable, Iterator
 from pathlib import Path
@@ -61,6 +62,7 @@ from picframe.api.models import (
     NightKeepOnRequest,
     NightSchedulerSettingsRequest,
     OptimizerConfig,
+    SchedulerDropboxRequest,
     OptimizerConfigRequest,
     OptimizerRunRequest,
     OptimizerStatusResponse,
@@ -172,6 +174,10 @@ OPENAPI_TAGS = [
         "name": "Sync",
         "description": "Dropbox sync status, on-demand trigger and divergence detection.",
     },
+    {
+        "name": "Scheduler",
+        "description": "Web-managed Dropbox sync schedule (real crontab).",
+    },
 ]
 BAD_REQUEST_RESPONSE: dict[int | str, dict[str, Any]] = {
     400: {"model": APIErrorResponse, "description": "Invalid request for the endpoint."},
@@ -205,6 +211,7 @@ AUTH_PROTECTED_API_PREFIXES = (
     "/api/catalog",
     "/api/night",
     "/api/sync",
+    "/api/scheduler",
     "/api/auth/config",
 )
 # Per-plugin overlay config/layout routes (`/api/overlay/plugins/<id>/config` and
@@ -1948,7 +1955,143 @@ def create_app(
     @app.get("/api/sync/divergences", tags=["Sync"], summary="Dropbox divergences")
     async def api_sync_divergences() -> dict[str, Any]:
         data = _read_json_file(_SYNC_DIVERGENCES, {"items": [], "generated_at": None})
+        data["last_result"] = _read_json_file("/control/resolve-result.json", None)
         return data
+
+    @app.post("/api/sync/divergence/resolve", tags=["Sync"], summary="Update local copy")
+    async def api_sync_resolve(payload: dict[str, Any] = Body(...)) -> dict[str, str]:
+        import os as _os
+
+        path = str(payload.get("path") or "").strip()
+        if not path:
+            raise HTTPException(status_code=400, detail="path required")
+        if not _os.path.isdir("/control"):
+            raise HTTPException(status_code=503, detail="Control bridge not mounted")
+        try:
+            with open("/control/resolve-current.json", "w", encoding="utf-8") as fh:
+                json.dump({"path": path}, fh)
+            with open("/control/resolve-request", "w", encoding="utf-8") as fh:
+                fh.write("resolve")
+        except OSError as exc:
+            raise HTTPException(status_code=500, detail=f"Could not trigger resolve: {exc}") from exc
+        return {"status": "started", "path": path}
+
+    # -- Dropbox sync SCHEDULE (web-managed crontab via control bridge) -----
+
+    _CRON_PRESETS = {
+        "5m": "*/5 * * * *", "10m": "*/10 * * * *", "15m": "*/15 * * * *",
+        "30m": "*/30 * * * *", "1h": "0 * * * *", "2h": "0 */2 * * *",
+        "6h": "0 */6 * * *", "12h": "0 */12 * * *", "24h": "0 0 * * *",
+    }
+    _CRON_FIELD = re.compile(r"^(\*|\d+|\*/\d+|\d+(,\d+)*|\d+-\d+)$")
+
+    def _validate_frequency(freq: str) -> str | None:
+        if freq in _CRON_PRESETS:
+            return _CRON_PRESETS[freq]
+        if freq in _CRON_PRESETS.values():
+            return freq
+        parts = freq.strip().split()
+        if len(parts) == 5 and all(_CRON_FIELD.match(p) for p in parts):
+            return freq.strip()
+        return None
+
+    @app.get("/api/scheduler/dropbox", tags=["Scheduler"], summary="Dropbox sync schedule")
+    async def api_scheduler_dropbox_get() -> dict[str, Any]:
+        state = _read_json_file("/control/cron-state.json", {})
+        metrics = _read_json_file(_SYNC_METRICS, {})
+        state["presets"] = _CRON_PRESETS
+        state["last_sync"] = metrics
+        return state
+
+    @app.put("/api/scheduler/dropbox", tags=["Scheduler"], summary="Set Dropbox sync schedule")
+    async def api_scheduler_dropbox_set(payload: SchedulerDropboxRequest) -> dict[str, Any]:
+        import os as _os
+
+        if not _os.path.isdir("/control"):
+            raise HTTPException(status_code=503, detail="Control bridge not mounted")
+        current = _read_json_file("/control/cron-config.json", {"enabled": True, "cron": "*/10 * * * *"})
+        enabled = current.get("enabled", True) if payload.enabled is None else bool(payload.enabled)
+        cron = current.get("cron", "*/10 * * * *")
+        if payload.frequency is not None:
+            validated = _validate_frequency(payload.frequency)
+            if validated is None:
+                raise HTTPException(status_code=400, detail="Invalid sync frequency")
+            cron = validated
+        try:
+            with open("/control/cron-config.json", "w", encoding="utf-8") as fh:
+                json.dump({"enabled": enabled, "cron": cron}, fh)
+            with open("/control/cron-request", "w", encoding="utf-8") as fh:
+                fh.write("apply")
+        except OSError as exc:
+            raise HTTPException(status_code=500, detail=f"Could not update schedule: {exc}") from exc
+        return {"status": "applied", "enabled": enabled, "cron": cron}
+
+    # -- System monitor + diagnostics (Missao 05 item 8) -------------------
+
+    @app.get("/api/system/monitor", tags=["System"], summary="Real host+container metrics")
+    async def api_system_monitor() -> dict[str, Any]:
+        from picframe.core.services import system_monitor
+
+        data = system_monitor.collect()
+        # Enrich with Frame Picture state (no Docker socket needed).
+        night = None
+        if night_scheduler_service is not None:
+            try:
+                night = night_scheduler_service.get_settings()
+            except Exception:
+                night = None
+        data["night"] = night
+        data["hdmi_on"] = night.get("hdmi_on") if night else None
+        data["sync"] = _read_json_file(_SYNC_METRICS, {})
+        data["schedule"] = _read_json_file("/control/cron-state.json", {})
+        return data
+
+    @app.get("/api/system/diagnostics", tags=["System"], summary="Diagnostics / versions")
+    async def api_system_diagnostics() -> dict[str, Any]:
+        import shutil
+        import subprocess as _sp
+
+        def _ver(cmd: list[str]) -> str | None:
+            try:
+                r = _sp.run(cmd, capture_output=True, text=True, timeout=5)
+                return (r.stdout or r.stderr).splitlines()[0] if (r.stdout or r.stderr) else None
+            except Exception:
+                return None
+
+        osrel = _read_json_file  # reuse not applicable; read /etc/os-release manually
+        os_name = None
+        try:
+            with open("/etc/os-release", encoding="utf-8") as fh:
+                for line in fh:
+                    if line.startswith("PRETTY_NAME="):
+                        os_name = line.split("=", 1)[1].strip().strip('"')
+        except OSError:
+            pass
+        picframe_ver = None
+        try:
+            import picframe
+
+            picframe_ver = getattr(picframe, "__version__", None)
+        except Exception:
+            pass
+        catalog_ok = catalog_service is not None
+        try:
+            if catalog_service is not None:
+                catalog_service.stats()
+        except Exception:
+            catalog_ok = False
+        return {
+            "picframe_version": picframe_ver,
+            "os": os_name,
+            "python": _ver(["python3", "--version"]),
+            "ffprobe": _ver(["ffprobe", "-version"]) if shutil.which("ffprobe") else "Indisponível",
+            "ffmpeg": _ver(["ffmpeg", "-version"]) if shutil.which("ffmpeg") else "Indisponível",
+            "gstreamer": _ver(["gst-launch-1.0", "--version"]),
+            "wlr_randr": "ok" if shutil.which("wlr-randr") else "Indisponível",
+            "exiftool": _ver(["exiftool", "-ver"]) if shutil.which("exiftool") else "Indisponível",
+            "catalog_db": "ok" if catalog_ok else "Indisponível",
+            "night_scheduler": "ok" if night_scheduler_service is not None else "Indisponível",
+        }
 
     @app.get(
         "/api/system/locales",
