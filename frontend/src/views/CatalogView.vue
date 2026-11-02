@@ -201,6 +201,27 @@ const statusChip: Record<string, string> = {
   review: 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300'
 }
 const statusLabel: Record<string, string> = { approved: 'Aprovado', pending: 'Pendente', review: 'Revisar' }
+
+// --- histórico ---
+const showHistoryModal = ref(false)
+const historyItems = ref<Array<Record<string, unknown>>>([])
+const historyFile = ref('')
+async function openHistory(it: CatalogItem) {
+  historyFile.value = it.filename
+  historyItems.value = await store.fetchHistory(it.rel_path)
+  showHistoryModal.value = true
+}
+const EVENT_LABELS: Record<string, string> = {
+  description_created: 'Descrição criada', description_edited: 'Descrição alterada',
+  approved: 'Aprovada', marked_review: 'Marcada p/ revisão', unapproved: 'Aprovação retirada',
+  hidden: 'Ocultada', shown: 'Reexibida', suggestion_changed: 'Sugestão alterada',
+  status_changed: 'Status alterado'
+}
+function eventLabel(e: unknown): string { return EVENT_LABELS[String(e)] || String(e) }
+function fmtTs(ts: unknown): string {
+  const n = Number(ts)
+  return n ? new Date(n * 1000).toLocaleString('pt-BR') : '—'
+}
 </script>
 
 <template>
@@ -341,9 +362,15 @@ const statusLabel: Record<string, string> = { approved: 'Aprovado', pending: 'Pe
           <tr v-for="it in store.items" :key="it.rel_path" class="border-t border-gray-100 align-middle dark:border-gray-700/60">
             <td class="p-2"><input type="checkbox" :checked="selected.has(it.rel_path) || selectAllResults" @change="toggleRow(it.rel_path)" /></td>
             <td class="p-2">
-              <img v-if="it.media_type === 'photo'" :src="store.thumbUrl(it.rel_path)" loading="lazy"
-                class="h-12 w-12 rounded object-cover" alt="" />
-              <div v-else class="flex h-12 w-12 items-center justify-center rounded bg-gray-100 text-lg dark:bg-gray-700">🎬</div>
+              <div class="relative h-12 w-12">
+                <img :src="store.thumbUrl(it.rel_path)" loading="lazy"
+                  class="h-12 w-12 rounded bg-gray-100 object-cover dark:bg-gray-700" alt=""
+                  @error="($event.target as HTMLImageElement).style.visibility='hidden'" />
+                <span v-if="it.media_type === 'video'"
+                  class="absolute inset-0 flex items-center justify-center text-white drop-shadow">
+                  <span class="rounded-full bg-black/50 px-1 text-[10px]">▶</span>
+                </span>
+              </div>
             </td>
             <td class="max-w-[180px] truncate p-2 font-mono text-xs" :title="it.rel_path">{{ it.filename }}</td>
             <td class="p-2 text-xs">{{ it.media_type === 'video' ? 'Vídeo' : 'Foto' }}</td>
@@ -369,6 +396,7 @@ const statusLabel: Record<string, string> = { approved: 'Aprovado', pending: 'Pe
                 <button type="button" class="rounded bg-emerald-600 px-2 py-1 text-[11px] text-white hover:bg-emerald-700" @click="approveRow(it)">Aprovar</button>
                 <button v-if="it.suggestion" type="button" class="rounded bg-indigo-600 px-2 py-1 text-[11px] text-white hover:bg-indigo-700" @click="acceptSuggestion(it)">Aceitar</button>
                 <button type="button" class="rounded bg-sky-600 px-2 py-1 text-[11px] text-white hover:bg-sky-700" @click="markReview(it)">Revisar</button>
+                <button type="button" class="rounded bg-gray-500 px-2 py-1 text-[11px] text-white hover:bg-gray-600" @click="openHistory(it)">Histórico</button>
               </div>
             </td>
           </tr>
@@ -385,6 +413,31 @@ const statusLabel: Record<string, string> = { approved: 'Aprovado', pending: 'Pe
       <div class="flex gap-2">
         <button type="button" class="rounded border border-gray-300 px-3 py-1 disabled:opacity-50 dark:border-gray-600" :disabled="page <= 1" @click="page--">Anterior</button>
         <button type="button" class="rounded border border-gray-300 px-3 py-1 disabled:opacity-50 dark:border-gray-600" :disabled="page >= totalPages" @click="page++">Próxima</button>
+      </div>
+    </div>
+
+    <!-- História modal -->
+    <div v-if="showHistoryModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" @click.self="showHistoryModal = false">
+      <div class="w-full max-w-lg space-y-3 rounded-xl bg-white p-5 shadow-xl dark:bg-gray-800">
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white">Histórico — <span class="font-mono text-sm">{{ historyFile }}</span></h3>
+        <div class="max-h-96 overflow-y-auto">
+          <ol v-if="historyItems.length" class="space-y-2">
+            <li v-for="(h, i) in historyItems" :key="i" class="border-l-2 border-indigo-300 pl-3 text-sm dark:border-indigo-500/40">
+              <div class="text-xs text-gray-400">{{ fmtTs((h as any).ts) }} · {{ (h as any).origin }}</div>
+              <div class="text-gray-800 dark:text-gray-200">
+                {{ eventLabel((h as any).event) }}
+                <span v-if="(h as any).old_value || (h as any).new_value" class="text-gray-500">
+                  — {{ (h as any).old_value ? `"${(h as any).old_value}" → ` : '' }}"{{ (h as any).new_value }}"
+                </span>
+                <span v-if="(h as any).batch_id" class="ml-1 rounded bg-gray-100 px-1 text-[10px] text-gray-500 dark:bg-gray-700">lote</span>
+              </div>
+            </li>
+          </ol>
+          <p v-else class="text-sm text-gray-400">Nenhum evento registrado para esta mídia.</p>
+        </div>
+        <div class="flex justify-end">
+          <button type="button" class="rounded-lg px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700" @click="showHistoryModal = false">Fechar</button>
+        </div>
       </div>
     </div>
 

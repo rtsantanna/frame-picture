@@ -160,6 +160,15 @@ export const useCatalogStore = defineStore('catalog', () => {
     return `${api.defaults.baseURL}/catalog/thumbnail?rel_path=${encodeURIComponent(relPath)}`
   }
 
+  async function fetchHistory(relPath: string): Promise<Array<Record<string, unknown>>> {
+    try {
+      const { data } = await api.get(`/catalog/history?rel_path=${encodeURIComponent(relPath)}`)
+      return Array.isArray(data.events) ? data.events : []
+    } catch {
+      return []
+    }
+  }
+
   // --- Dropbox sync ---
   const sync = ref<Record<string, unknown>>({ running: false, result: 'unknown' })
   const divergences = ref<Array<Record<string, unknown>>>([])
@@ -186,7 +195,7 @@ export const useCatalogStore = defineStore('catalog', () => {
     items, total, stats, settings, loading, error, scanning,
     sync, divergences,
     fetchStats, fetchList, fetchSettings, saveSettings, updateItem,
-    batchPreview, batch, scan, scanStatus, thumbUrl,
+    batchPreview, batch, scan, scanStatus, thumbUrl, fetchHistory,
     fetchSync, syncNow, fetchDivergences
   }
 })

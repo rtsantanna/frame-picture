@@ -12,11 +12,14 @@
   "nav": {
     "primary": "Primary navigation",
     "remote": "Remote",
+    "fotos": "Photos",
     "appearance": "Appearance",
     "appearanceShort": "Look",
     "settings": "Settings",
     "optimizer": "Optimizer",
     "optimizerShort": "Optimize",
+    "agendador": "Scheduler",
+    "sistema": "System",
     "logs": "Logs",
     "toggleLanguage": "Switch language"
   },

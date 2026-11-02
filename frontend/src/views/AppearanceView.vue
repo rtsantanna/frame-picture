@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { AdjustmentsHorizontalIcon, ArrowPathIcon, CheckIcon } from '@heroicons/vue/24/outline'
 import { useConfigStore } from '../stores/config'
 import { usePlayerStore } from '../stores/player'
+import { useAppearanceStore, type OverlayAppearance } from '../stores/appearance'
 import TextOverlayControls from '../components/TextOverlayControls.vue'
 import OverlayAppearanceSection from '../components/OverlayAppearanceSection.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
@@ -117,6 +118,13 @@ watch(
   },
   { immediate: true }
 )
+
+const appearanceStore = useAppearanceStore()
+const hdmi = computed(() => appearanceStore.state)
+async function saveHdmi(patch: Partial<OverlayAppearance>) {
+  try { await appearanceStore.save(patch) } catch { /* surfaced via store */ }
+}
+onMounted(() => appearanceStore.fetch())
 </script>
 
 <template>
@@ -130,6 +138,56 @@ watch(
         </div>
       </template>
     </PageHeader>
+
+    <!-- Aparência dos textos na HDMI (Missao 06) -->
+    <Panel padded>
+      <div class="mb-4">
+        <h2 class="text-lg font-semibold text-gray-950 dark:text-white">Aparência dos textos na HDMI</h2>
+        <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
+          Descrição e data (canto inferior esquerdo) e relógio (canto inferior direito). Aplica ao vivo, sem reiniciar.
+        </p>
+      </div>
+      <div class="grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <!-- Descrição -->
+        <div class="space-y-2 rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-semibold text-gray-900 dark:text-white">Descrição</span>
+            <input type="checkbox" :checked="hdmi.description_enabled" @change="saveHdmi({ description_enabled: ($event.target as HTMLInputElement).checked })" />
+          </div>
+          <p class="text-[11px] text-gray-400">Cor/tamanho/fundo são compartilhados com a Data (mesma linha).</p>
+        </div>
+        <!-- Data -->
+        <div class="space-y-2 rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-semibold text-gray-900 dark:text-white">Data original</span>
+            <input type="checkbox" :checked="hdmi.date_enabled" @change="saveHdmi({ date_enabled: ($event.target as HTMLInputElement).checked })" />
+          </div>
+          <label class="flex items-center justify-between text-sm">Cor do texto
+            <input type="color" :value="hdmi.text_color" @input="saveHdmi({ text_color: ($event.target as HTMLInputElement).value })" /></label>
+          <label class="flex items-center justify-between text-sm">Tamanho
+            <input type="number" min="8" max="200" :value="hdmi.text_size" class="w-20 rounded border px-2 py-1 text-sm dark:bg-gray-700" @change="saveHdmi({ text_size: Number(($event.target as HTMLInputElement).value) })" /></label>
+          <label class="flex items-center justify-between text-sm">Opacidade
+            <input type="number" min="0" max="1" step="0.1" :value="hdmi.text_opacity" class="w-20 rounded border px-2 py-1 text-sm dark:bg-gray-700" @change="saveHdmi({ text_opacity: Number(($event.target as HTMLInputElement).value) })" /></label>
+          <label class="flex items-center justify-between text-sm">Cor do fundo
+            <input type="color" :value="hdmi.text_bg_color" @input="saveHdmi({ text_bg_color: ($event.target as HTMLInputElement).value })" /></label>
+          <label class="flex items-center justify-between text-sm">Opacidade do fundo
+            <input type="number" min="0" max="1" step="0.05" :value="hdmi.text_bg_opacity" class="w-20 rounded border px-2 py-1 text-sm dark:bg-gray-700" @change="saveHdmi({ text_bg_opacity: Number(($event.target as HTMLInputElement).value) })" /></label>
+        </div>
+        <!-- Relógio -->
+        <div class="space-y-2 rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-semibold text-gray-900 dark:text-white">Relógio</span>
+            <input type="checkbox" :checked="hdmi.clock_enabled" @change="saveHdmi({ clock_enabled: ($event.target as HTMLInputElement).checked })" />
+          </div>
+          <label class="flex items-center justify-between text-sm">Cor
+            <input type="color" :value="hdmi.clock_color" @input="saveHdmi({ clock_color: ($event.target as HTMLInputElement).value })" /></label>
+          <label class="flex items-center justify-between text-sm">Tamanho
+            <input type="number" min="8" max="400" :value="hdmi.clock_size" class="w-20 rounded border px-2 py-1 text-sm dark:bg-gray-700" @change="saveHdmi({ clock_size: Number(($event.target as HTMLInputElement).value) })" /></label>
+          <label class="flex items-center justify-between text-sm">Opacidade
+            <input type="number" min="0" max="1" step="0.1" :value="hdmi.clock_opacity" class="w-20 rounded border px-2 py-1 text-sm dark:bg-gray-700" @change="saveHdmi({ clock_opacity: Number(($event.target as HTMLInputElement).value) })" /></label>
+        </div>
+      </div>
+    </Panel>
 
     <StatusBanner
       v-if="configError"

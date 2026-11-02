@@ -12,11 +12,14 @@
   "nav": {
     "primary": "Hauptnavigation",
     "remote": "Fernbedienung",
+    "fotos": "Fotos",
     "appearance": "Darstellung",
     "appearanceShort": "Optik",
     "settings": "Einstellungen",
     "optimizer": "Optimierer",
     "optimizerShort": "Optimieren",
+    "agendador": "Planer",
+    "sistema": "System",
     "logs": "Logs",
     "toggleLanguage": "Sprache wechseln"
   },

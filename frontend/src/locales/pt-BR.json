@@ -1,0 +1,36 @@
+{
+  "common": {
+    "help": "Ajuda",
+    "close": "Fechar",
+    "dismiss": "Dispensar",
+    "systemError": "Erro de sistema",
+    "retry": "Tentar novamente",
+    "save": "Salvar",
+    "saving": "Salvando...",
+    "cancel": "Cancelar"
+  },
+  "nav": {
+    "primary": "Navegação principal",
+    "remote": "Controle",
+    "fotos": "Fotos",
+    "appearance": "Aparência",
+    "appearanceShort": "Aparência",
+    "settings": "Configurações",
+    "optimizer": "Otimizador",
+    "optimizerShort": "Otimizar",
+    "agendador": "Agendador",
+    "sistema": "Sistema",
+    "logs": "Logs",
+    "toggleLanguage": "Trocar idioma"
+  },
+  "connection": {
+    "live": "Ao vivo",
+    "connecting": "Conectando",
+    "reconnecting": "Reconectando",
+    "offline": "Offline",
+    "liveTitle": "Conexão de controle em tempo real ativa.",
+    "connectingTitle": "Conexão de controle em tempo real iniciando.",
+    "reconnectingTitle": "Conexão de controle em tempo real caiu. Tentando novamente...",
+    "offlineTitle": "Conexão de controle em tempo real offline."
+  }
+}

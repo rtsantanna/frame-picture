@@ -6,21 +6,23 @@ import { XMarkIcon } from '@heroicons/vue/24/outline'
 import { usePlayerStore } from './stores/player'
 import StatusBanner from './components/ui/StatusBanner.vue'
 
+import { LOCALES, setLocale } from './i18n'
+
 const { t, locale } = useI18n()
 const playerStore = usePlayerStore()
 
-const toggleLocale = () => {
-  locale.value = locale.value === 'en' ? 'de' : 'en'
+const onLocaleChange = (e: Event) => {
+  setLocale((e.target as HTMLSelectElement).value)
 }
 
 const navItems = computed(() => [
   { to: '/', label: t('nav.remote'), shortLabel: t('nav.remote') },
-  { to: '/catalog', label: 'Fotos', shortLabel: 'Fotos' },
+  { to: '/catalog', label: t('nav.fotos'), shortLabel: t('nav.fotos') },
   { to: '/appearance', label: t('nav.appearance'), shortLabel: t('nav.appearanceShort') },
   { to: '/settings', label: t('nav.settings'), shortLabel: t('nav.settings') },
   { to: '/optimizer', label: t('nav.optimizer'), shortLabel: t('nav.optimizerShort') },
-  { to: '/agendador', label: 'Agendador', shortLabel: 'Agendador' },
-  { to: '/sistema', label: 'Sistema', shortLabel: 'Sistema' }
+  { to: '/agendador', label: t('nav.agendador'), shortLabel: t('nav.agendador') },
+  { to: '/sistema', label: t('nav.sistema'), shortLabel: t('nav.sistema') }
 ])
 
 onMounted(() => {
@@ -107,14 +109,14 @@ const connectionIndicator = computed(() => {
             ></span>
             <span class="hidden sm:inline">{{ connectionIndicator.label }}</span>
           </div>
-          <button
-            type="button"
+          <select
+            :value="locale"
             :aria-label="t('nav.toggleLanguage')"
-            class="inline-flex h-9 items-center rounded-lg px-1 text-xs font-medium uppercase text-gray-700 hover:bg-gray-100 hover:text-gray-950 focus:outline-none focus:ring-2 focus:ring-sky-500/60 dark:text-gray-200 dark:hover:bg-gray-800 dark:hover:text-white sm:h-10 sm:px-3 sm:text-sm"
-            @click="toggleLocale"
+            class="h-9 rounded-lg border border-gray-300 bg-white px-1 text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-500/60 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 sm:h-10 sm:px-2 sm:text-sm"
+            @change="onLocaleChange"
           >
-            {{ locale }}
-          </button>
+            <option v-for="l in LOCALES" :key="l.code" :value="l.code">{{ l.label }}</option>
+          </select>
         </div>
       </nav>
     </header>
