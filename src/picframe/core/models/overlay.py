@@ -15,17 +15,24 @@ are the only components that touch the browser engine.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
 # Allowed ``type`` values in a plugin ``config_schema`` field definition. Kept
-# narrow on purpose; extend when a real plugin needs more.
+# narrow on purpose; extend when a real plugin needs more. ``color`` is a
+# string carrying a CSS hex colour (``#rgb`` / ``#rrggbb``); the web form
+# renders it with a colour picker and the value is validated below.
 _CONFIG_FIELD_TYPES: dict[str, tuple[type[Any], ...]] = {
     "string": (str,),
     "integer": (int,),
     "number": (int, float),
     "boolean": (bool,),
+    "color": (str,),
 }
+
+# A CSS hex colour: ``#rgb`` or ``#rrggbb`` (case-insensitive).
+_HEX_COLOR_RE = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
 
 # Nine-anchor screen positions used for panel placement (``position``) —
 # issue #752.
@@ -157,6 +164,10 @@ def _coerce_field_type(field_name: str, field_schema: dict[str, Any], value: Any
     allowed = _CONFIG_FIELD_TYPES[declared_type]
     if not isinstance(value, allowed):
         raise PluginConfigError(f"Plugin config field '{field_name}' must be {declared_type}")
+    if declared_type == "color" and not _HEX_COLOR_RE.match(value):
+        raise PluginConfigError(
+            f"Plugin config field '{field_name}' must be a hex colour like '#rrggbb'"
+        )
     enum_values = field_schema.get("enum")
     if enum_values is not None and value not in enum_values:
         raise PluginConfigError(f"Plugin config field '{field_name}' must be one of {enum_values}")

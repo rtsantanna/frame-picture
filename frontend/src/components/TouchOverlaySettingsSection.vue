@@ -917,6 +917,26 @@ onBeforeUnmount(stopCapture)
                     </option>
                   </select>
 
+                  <!-- color -->
+                  <div
+                    v-else-if="plugin.config_schema[fieldName]?.type === 'color'"
+                    class="flex items-center gap-3"
+                  >
+                    <input
+                      :value="configDrafts[plugin.id]?.[fieldName] ?? '#ffffff'"
+                      type="color"
+                      class="h-9 w-14 cursor-pointer rounded-lg border border-gray-300 bg-white p-1 dark:border-gray-600 dark:bg-gray-700"
+                      @input="
+                        configDrafts[plugin.id][fieldName] = (
+                          $event.target as HTMLInputElement
+                        ).value
+                      "
+                    />
+                    <span class="font-mono text-xs text-gray-500 dark:text-gray-400">
+                      {{ configDrafts[plugin.id]?.[fieldName] ?? '#ffffff' }}
+                    </span>
+                  </div>
+
                   <!-- string (default) -->
                   <input
                     v-else

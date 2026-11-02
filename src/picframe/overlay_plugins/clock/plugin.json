@@ -45,6 +45,44 @@
       "label": "Opacity",
       "help": "Clock opacity 0.0 (transparent) to 1.0 (opaque)."
     },
+    "text_color": {
+      "type": "color",
+      "default": "#f8fafc",
+      "label": "Text color",
+      "help": "Color of the clock text (and analog hands)."
+    },
+    "font_family": {
+      "type": "string",
+      "default": "sans",
+      "enum": ["sans", "serif", "mono"],
+      "label": "Font family",
+      "help": "Typeface used for the clock text."
+    },
+    "font_weight": {
+      "type": "string",
+      "default": "bold",
+      "enum": ["normal", "bold"],
+      "label": "Font weight",
+      "help": "Normal or bold weight for the time."
+    },
+    "font_scale": {
+      "type": "number",
+      "default": 1.0,
+      "label": "Font scale",
+      "help": "Multiplier for the text size (1.0 = default; 1.5 = 50% larger)."
+    },
+    "bg_color": {
+      "type": "color",
+      "default": "#000000",
+      "label": "Text background color",
+      "help": "Color of the readability panel behind the text."
+    },
+    "bg_opacity": {
+      "type": "number",
+      "default": 0.35,
+      "label": "Text background opacity",
+      "help": "Background opacity 0.0 (none) to 1.0 (solid)."
+    },
     "extra_source": {
       "type": "string",
       "default": "off",
