@@ -1,18 +1,13 @@
 import { createI18n } from 'vue-i18n'
 import en from './locales/en.json'
-import de from './locales/de.json'
 import ptBR from './locales/pt-BR.json'
-import esES from './locales/es-ES.json'
 
-// Missao 06 item 4: public locale codes are regional (pt-BR, en-US, es-ES,
-// de-DE). The existing en/de catalogs are reused as the en-US/de-DE base; pt-BR
-// and es-ES add the translated chrome and fall back through pt-BR -> en-US for
-// any key not yet translated (so the UI never shows a raw key).
+// Missao 06 (atualizada): only two public locales are offered — pt-BR (default)
+// and en-US. es-ES / de-DE were dropped. Any key missing from pt-BR falls back
+// to en-US so the UI never shows a raw key.
 export const LOCALES: Array<{ code: string; label: string }> = [
   { code: 'pt-BR', label: 'Português (Brasil)' },
-  { code: 'en-US', label: 'English (United States)' },
-  { code: 'es-ES', label: 'Español (España)' },
-  { code: 'de-DE', label: 'Deutsch (Deutschland)' }
+  { code: 'en-US', label: 'English (United States)' }
 ]
 
 const STORAGE_KEY = 'framepicture.locale'
@@ -33,9 +28,7 @@ const i18n = createI18n({
   fallbackLocale: ['pt-BR', 'en-US'],
   messages: {
     'pt-BR': ptBR,
-    'en-US': en,
-    'es-ES': esES,
-    'de-DE': de
+    'en-US': en
   }
 })
 
