@@ -46,7 +46,17 @@ class ImagePreparer:
         self._logger = logger or logging.getLogger(__name__)
         self._matter: Any | None = None
         self._matting_unavailable = False
+        self._rotation_provider: Callable[[str], int] | None = None
         self.update_config(config)
+
+    def set_rotation_provider(self, provider: Callable[[str], int] | None) -> None:
+        """Set a callable mapping an absolute image path to a manual rotation.
+
+        The rotation is in degrees clockwise (0/90/180/270) and is applied after
+        EXIF auto-orientation so a user can correct photos whose EXIF orientation
+        is missing or wrong, without modifying the original file.
+        """
+        self._rotation_provider = provider
 
     @staticmethod
     def config_value(config: Any, key: str, default: Any) -> Any:
@@ -241,9 +251,30 @@ class ImagePreparer:
             return True
         return self.aspect_difference(self._display_size, image_size) > self._control.threshold
 
+    _ROTATE_TRANSPOSE = {
+        90: Image.Transpose.ROTATE_270,  # 90 clockwise
+        180: Image.Transpose.ROTATE_180,
+        270: Image.Transpose.ROTATE_90,  # 270 clockwise == 90 counter-clockwise
+    }
+
+    def _manual_rotation_for(self, image_path: str) -> int:
+        if self._rotation_provider is None:
+            return 0
+        try:
+            return int(self._rotation_provider(image_path) or 0) % 360
+        except Exception:  # pragma: no cover - provider is best-effort
+            return 0
+
+    def _apply_manual_rotation(self, image: Image.Image, image_path: str) -> Image.Image:
+        transpose = self._ROTATE_TRANSPOSE.get(self._manual_rotation_for(image_path))
+        if transpose is None:
+            return image
+        return image.transpose(transpose)
+
     def _load_image_from_path(self, image_path: str) -> Image.Image:
         with Image.open(image_path) as image_file:
-            return self._as_rgb(ImageOps.exif_transpose(image_file))
+            oriented = self._as_rgb(ImageOps.exif_transpose(image_file))
+        return self._apply_manual_rotation(oriented, image_path)
 
     def _as_rgb(self, image: Image.Image) -> Image.Image:
         image = image.copy()

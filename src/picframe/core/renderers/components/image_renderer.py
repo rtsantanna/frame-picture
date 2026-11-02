@@ -54,6 +54,10 @@ class ImageRenderer:
         self.update_config(config)
         self._init_slide()
 
+    def set_rotation_provider(self, provider: Any) -> None:
+        """Forward a manual-rotation provider to the image preparer."""
+        self._image_preparer.set_rotation_provider(provider)
+
     @staticmethod
     def _config_value(config: Any, key: str, default: Any) -> Any:
         if isinstance(config, dict):

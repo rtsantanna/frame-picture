@@ -112,6 +112,12 @@ CATALOG_MIGRATIONS = [
         CREATE INDEX IF NOT EXISTS idx_hist_rel ON catalog_history(rel_path, ts);
         """,
     ),
+    Migration(
+        version=4,
+        up_script="""
+        ALTER TABLE catalog ADD COLUMN manual_rotation INTEGER NOT NULL DEFAULT 0;
+        """,
+    ),
 ]
 
 # Named filters -> SQL WHERE fragment (no user input interpolated).
@@ -275,6 +281,7 @@ class SQLiteCatalogRepository:
             "suggestion",
             "suggestion_source",
             "suggestion_confidence",
+            "manual_rotation",
         }
         sets = {k: v for k, v in fields.items() if k in allowed}
         if not sets:
@@ -300,6 +307,17 @@ class SQLiteCatalogRepository:
                 "SELECT approved_description FROM catalog WHERE rel_path=?", (rel_path,)
             ).fetchone()
         return row["approved_description"] if row else None
+
+    def manual_rotation(self, rel_path: str) -> int:
+        """Return the non-destructive manual rotation (degrees clockwise) for a row."""
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT manual_rotation FROM catalog WHERE rel_path=?", (rel_path,)
+            ).fetchone()
+        try:
+            return int(row["manual_rotation"]) % 360 if row else 0
+        except (TypeError, ValueError):
+            return 0
 
     # -- geocode cache -----------------------------------------------------
 

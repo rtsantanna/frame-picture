@@ -365,6 +365,55 @@ class CatalogService:
             self._repo.add_event(rel_path, "suggestion_changed", "suggestion",
                                  before.get("suggestion"), fields.get("suggestion"),
                                  origin, batch_id)
+        if "manual_rotation" in fields and before.get("manual_rotation") != fields["manual_rotation"]:
+            new = int(fields["manual_rotation"] or 0)
+            ev = "rotation_reset" if new == 0 else "rotation_changed"
+            self._repo.add_event(rel_path, ev, "manual_rotation",
+                                 before.get("manual_rotation"), new, origin, batch_id)
+
+    def rotate(self, rel_path: str, action: str, origin: str = "manual") -> dict[str, Any] | None:
+        """Apply a non-destructive manual rotation to a catalog row.
+
+        ``action`` is one of ``right`` (+90 clockwise), ``left`` (-90), ``flip``
+        / ``180``, ``auto`` / ``reset`` (clear the override, back to EXIF-only),
+        or an explicit integer string of degrees. Returns the row's new state.
+        """
+        row = self._repo.get(rel_path)
+        if row is None:
+            return None
+        try:
+            current = int(row.get("manual_rotation") or 0) % 360
+        except (TypeError, ValueError):
+            current = 0
+        act = str(action).strip().lower()
+        if act in ("auto", "reset", "none", "0"):
+            new = 0
+        elif act in ("right", "cw", "90"):
+            new = (current + 90) % 360
+        elif act in ("left", "ccw", "270", "-90"):
+            new = (current + 270) % 360
+        elif act in ("flip", "180"):
+            new = (current + 180) % 360
+        else:
+            try:
+                new = int(act) % 360
+            except ValueError:
+                new = current
+            new = (new // 90) * 90 % 360
+        self.update(rel_path, {"manual_rotation": new}, origin=origin)
+        return {"rel_path": rel_path, "manual_rotation": new}
+
+    def manual_rotation_for(self, abs_path: str) -> int:
+        """Return the manual rotation (degrees clockwise) for an absolute media path."""
+        root = self.pic_dir()
+        try:
+            rel = os.path.relpath(abs_path, root)
+        except ValueError:
+            return 0
+        try:
+            return int(self._repo.manual_rotation(rel)) % 360
+        except (TypeError, ValueError, AttributeError):
+            return 0
 
     def get_history(self, rel_path: str) -> list[dict[str, Any]]:
         return self._repo.get_history(rel_path)

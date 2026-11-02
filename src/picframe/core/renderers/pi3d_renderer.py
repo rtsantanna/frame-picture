@@ -667,6 +667,10 @@ class Pi3dRenderer(IRenderer):
             self._config,
             render_rect=self._render_rect,
         )
+        if self._catalog_service is not None:
+            rotation_provider = getattr(self._catalog_service, "manual_rotation_for", None)
+            if callable(rotation_provider):
+                self._image_renderer.set_rotation_provider(rotation_provider)
 
         font_file = os.path.expanduser(self._config.font_file)
         self._text_renderer = TextRenderer(
