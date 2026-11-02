@@ -1,0 +1,11 @@
+[Unit]
+Description=Watch for Frame Picture manual sync trigger
+
+[Path]
+# The panel (inside the container) drops this file via the ./control bind mount.
+# No Docker socket or shell is exposed; systemd runs the sync on the host.
+PathExists=/data/frame-picture/control/sync-request
+Unit=framepicture-sync.service
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,6 @@
+[Unit]
+Description=Frame Picture on-demand Dropbox sync
+
+[Service]
+Type=oneshot
+ExecStart=/data/frame-picture/sync.sh manual

@@ -27,6 +27,7 @@ services:
     volumes:
       - "/data/photos:/data/photos"                 # biblioteca local (escrita controlada p/ otimizacao)
       - "framepicture_state:/root/.picframe"         # config/estado/db persistentes
+      - "./control:/control"                         # ponte host<->container: sync-request + sync-metrics.json (sem Docker socket)
       - "./start.sh:/start.sh:ro"
       - "./labwc-rc.xml:/labwc-rc.xml:ro"
     environment:
