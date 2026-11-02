@@ -168,6 +168,10 @@ OPENAPI_TAGS = [
         "name": "Night",
         "description": "Night standby scheduler (HDMI off/on window + one-night exception).",
     },
+    {
+        "name": "Sync",
+        "description": "Dropbox sync status, on-demand trigger and divergence detection.",
+    },
 ]
 BAD_REQUEST_RESPONSE: dict[int | str, dict[str, Any]] = {
     400: {"model": APIErrorResponse, "description": "Invalid request for the endpoint."},
@@ -200,6 +204,7 @@ AUTH_PROTECTED_API_PREFIXES = (
     "/api/optimizer",
     "/api/catalog",
     "/api/night",
+    "/api/sync",
     "/api/auth/config",
 )
 # Per-plugin overlay config/layout routes (`/api/overlay/plugins/<id>/config` and
@@ -1896,6 +1901,54 @@ def create_app(
     @app.post("/api/night/keep-on-tonight", tags=["Night"], summary="One-night keep-on exception")
     async def api_night_keep_on(payload: NightKeepOnRequest) -> dict[str, Any]:
         return _require_night().keep_on_tonight(payload.enable)
+
+    # -- Dropbox sync (host bridge via ./control; no shell/socket exposed) --
+
+    _SYNC_METRICS = "/control/sync-metrics.json"
+    _SYNC_REQUEST = "/control/sync-request"
+    _SYNC_DIVERGENCES = "/control/sync-divergences.json"
+
+    def _read_json_file(path: str, default: Any) -> Any:
+        import json as _json
+        import os as _os
+
+        try:
+            if _os.path.isfile(path):
+                with open(path, encoding="utf-8") as fh:
+                    return _json.load(fh)
+        except Exception:  # pragma: no cover - corrupt/partial file
+            pass
+        return default
+
+    @app.get("/api/sync/status", tags=["Sync"], summary="Dropbox sync status + metrics")
+    async def api_sync_status() -> dict[str, Any]:
+        import os as _os
+
+        data = _read_json_file(_SYNC_METRICS, {"running": False, "result": "unknown"})
+        data["trigger_pending"] = _os.path.exists(_SYNC_REQUEST)
+        return data
+
+    @app.post("/api/sync/now", tags=["Sync"], summary="Trigger a Dropbox sync now")
+    async def api_sync_now() -> dict[str, str]:
+        import os as _os
+
+        metrics = _read_json_file(_SYNC_METRICS, {})
+        if metrics.get("running"):
+            return {"status": "busy"}
+        if not _os.path.isdir("/control"):
+            raise HTTPException(status_code=503, detail="Sync control bridge not mounted")
+        try:
+            # The host systemd path-unit watches this file and runs sync.sh.
+            with open(_SYNC_REQUEST, "w", encoding="utf-8") as fh:
+                fh.write("manual")
+        except OSError as exc:
+            raise HTTPException(status_code=500, detail=f"Could not trigger sync: {exc}") from exc
+        return {"status": "started"}
+
+    @app.get("/api/sync/divergences", tags=["Sync"], summary="Dropbox divergences")
+    async def api_sync_divergences() -> dict[str, Any]:
+        data = _read_json_file(_SYNC_DIVERGENCES, {"items": [], "generated_at": None})
+        return data
 
     @app.get(
         "/api/system/locales",

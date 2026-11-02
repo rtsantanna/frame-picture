@@ -84,7 +84,17 @@ CATALOG_MIGRATIONS = [
         CREATE INDEX IF NOT EXISTS idx_catalog_visible ON catalog(visible);
         CREATE INDEX IF NOT EXISTS idx_catalog_type ON catalog(media_type);
         """,
-    )
+    ),
+    Migration(
+        version=2,
+        up_script="""
+        CREATE TABLE IF NOT EXISTS geocode_cache (
+            key    TEXT PRIMARY KEY,
+            place  TEXT,
+            ts     REAL
+        );
+        """,
+    ),
 ]
 
 # Named filters -> SQL WHERE fragment (no user input interpolated).
@@ -273,3 +283,27 @@ class SQLiteCatalogRepository:
                 "SELECT approved_description FROM catalog WHERE rel_path=?", (rel_path,)
             ).fetchone()
         return row["approved_description"] if row else None
+
+    # -- geocode cache -----------------------------------------------------
+
+    @staticmethod
+    def _geo_key(lat: float, lon: float) -> str:
+        # ~0.001 deg (~100 m) bucket so nearby photos share a lookup.
+        return f"{round(float(lat), 3)},{round(float(lon), 3)}"
+
+    def get_geocode(self, lat: float, lon: float) -> str | None:
+        """Return the cached place ("" = looked up, no result) or None if never
+        looked up."""
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT place FROM geocode_cache WHERE key=?", (self._geo_key(lat, lon),)
+            ).fetchone()
+        return row["place"] if row else None
+
+    def set_geocode(self, lat: float, lon: float, place: str) -> None:
+        with self._lock:
+            self._conn.execute(
+                "INSERT INTO geocode_cache (key, place, ts) VALUES (?,?,?) "
+                "ON CONFLICT(key) DO UPDATE SET place=excluded.place, ts=excluded.ts",
+                (self._geo_key(lat, lon), place, time.time()),
+            )

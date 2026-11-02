@@ -263,12 +263,52 @@ class CatalogService:
             self._repo.set_suggestion(rel, "", "none", "low")
 
     def _reverse_geocode(self, lat: float, lon: float) -> str | None:
-        """Reverse geocode coordinates -> place name. Disabled by default and
-        implemented behind the ``catalog.geocode_enabled`` toggle. Left as an
-        explicit opt-in because it calls a third-party service; the operator
-        enables it in the panel. Returns None when disabled/unavailable."""
-        # Intentionally not calling any external provider autonomously.
-        return None
+        """Reverse geocode coordinates -> "Cidade, Estado" via OpenStreetMap
+        Nominatim. Only runs when ``catalog.geocode_enabled`` is on. Sends ONLY
+        the coordinates (never image content), caches every result persistently
+        (including "no result"), and rate-limits to Nominatim's 1 req/s policy.
+        Returns a city/town/municipality — never a presumed tourist landmark."""
+        import json as _json
+        import time as _time
+        import urllib.parse
+        import urllib.request
+
+        cached = self._repo.get_geocode(lat, lon)
+        if cached is not None:
+            return cached or None  # "" = looked up, no result
+        params = urllib.parse.urlencode(
+            {
+                "format": "jsonv2",
+                "lat": f"{lat:.5f}",
+                "lon": f"{lon:.5f}",
+                "zoom": "10",  # city level, not building/landmark
+                "accept-language": "pt-BR",
+            }
+        )
+        url = "https://nominatim.openstreetmap.org/reverse?" + params
+        req = urllib.request.Request(
+            url,
+            headers={"User-Agent": "FramePicture/1.0 (digital photo frame; rtsantanna)"},
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=12) as resp:
+                data = _json.loads(resp.read().decode("utf-8"))
+            addr = data.get("address", {}) if isinstance(data, dict) else {}
+            place = (
+                addr.get("city")
+                or addr.get("town")
+                or addr.get("village")
+                or addr.get("municipality")
+                or addr.get("county")
+            )
+            state = addr.get("state")
+            result = ", ".join([p for p in (place, state) if p]) if place else ""
+            self._repo.set_geocode(lat, lon, result)
+            _time.sleep(1.1)  # honour Nominatim's max 1 req/s
+            return result or None
+        except Exception as exc:
+            logger.warning("Reverse geocode failed for %s,%s: %s", lat, lon, exc)
+            return None
 
     # -- reads for the panel ----------------------------------------------
 

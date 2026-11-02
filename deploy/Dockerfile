@@ -33,7 +33,7 @@ RUN sed -i 's/^# *en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && local
 #  * wlr-randr: liga/desliga o output HDMI sob o compositor wlroots/labwc
 #    (usado pelo WaylandDisplayPower e pelo agendador noturno).
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      libimage-exiftool-perl wlr-randr \
+      libimage-exiftool-perl wlr-randr grim \
  && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # --- timezone America/Sao_Paulo ---

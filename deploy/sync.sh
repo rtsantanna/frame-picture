@@ -58,6 +58,24 @@ write_metrics true "running" 0 "$(find "$PHOTOS" -type f 2>/dev/null | wc -l)" 0
 before=$(find "$PHOTOS" -type f 2>/dev/null | wc -l)
 echo "$(date -Is) [$REASON] sync start (before=$before)" >> "$LOG"
 
+# --- divergence detection (Missao 04 item 4) --------------------------------
+# Snapshot the CURRENT remote metadata and compare it to the persistent
+# manifest of what we last imported. This runs BEFORE the copy, so an
+# updated-in-source file is flagged while rclone's --ignore-existing leaves the
+# local (possibly optimized) copy untouched. Never fatal to the sync itself.
+MANIFEST_PY="$(dirname "$0")/sync_manifest.py"
+if command -v python3 >/dev/null 2>&1 && [ -f "$MANIFEST_PY" ]; then
+  if /usr/bin/rclone lsjson "$REMOTE" --hash --recursive > "$CONTROL/remote-now.json" 2>>"$LOG"; then
+    python3 "$MANIFEST_PY" \
+      "$CONTROL/remote-now.json" \
+      "$CONTROL/dropbox-manifest.json" \
+      "$CONTROL/sync-divergences.json" >> "$LOG" 2>&1 \
+      || echo "$(date -Is) [$REASON] manifest comparison failed" >> "$LOG"
+  else
+    echo "$(date -Is) [$REASON] rclone lsjson failed; skipping divergence check" >> "$LOG"
+  fi
+fi
+
 /usr/bin/rclone copy "$REMOTE" "$PHOTOS" \
   --ignore-existing --transfers 4 \
   --log-file "$LOG" --log-level INFO
