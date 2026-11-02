@@ -32,8 +32,11 @@ RUN sed -i 's/^# *en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && local
 #  * exiftool: EXIF/XMP/IPTC de fotos + metadados de contêiner de video.
 #  * wlr-randr: liga/desliga o output HDMI sob o compositor wlroots/labwc
 #    (usado pelo WaylandDisplayPower e pelo agendador noturno).
+#  * grim: screenshot do output wlroots (validacao real da HDMI).
+#  * ffmpeg: fornece ffprobe (metadados de video) e ffmpeg (thumbnail de 1 frame).
+#    O decode em si usa gstreamer1.0-libav (ja instalado acima).
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      libimage-exiftool-perl wlr-randr grim \
+      libimage-exiftool-perl wlr-randr grim ffmpeg \
  && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # --- timezone America/Sao_Paulo ---
