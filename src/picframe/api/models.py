@@ -759,3 +759,26 @@ class SchedulerDropboxRequest(BaseModel):
     enabled: bool | None = None
     # A preset key (5m,10m,15m,30m,1h,2h,6h,12h,24h) or a validated cron string.
     frequency: str | None = None
+
+
+# ---------------------------------------------------------------------------
+# HDMI overlay appearance (per element) — Missao 06 item 1
+# ---------------------------------------------------------------------------
+
+
+class OverlayAppearanceRequest(BaseModel):
+    """Per-element HDMI overlay appearance. Clock is fully independent; the
+    description and date share one bottom-left line (so share colour/size) but
+    have independent show/hide."""
+
+    clock_enabled: bool | None = None
+    clock_color: str | None = None
+    clock_size: int | None = Field(default=None, ge=8, le=400)
+    clock_opacity: float | None = Field(default=None, ge=0.0, le=1.0)
+    description_enabled: bool | None = None
+    date_enabled: bool | None = None
+    text_color: str | None = None
+    text_size: int | None = Field(default=None, ge=8, le=200)
+    text_opacity: float | None = Field(default=None, ge=0.0, le=1.0)
+    text_bg_color: str | None = None
+    text_bg_opacity: float | None = Field(default=None, ge=0.0, le=1.0)

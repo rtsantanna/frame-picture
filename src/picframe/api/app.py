@@ -62,6 +62,7 @@ from picframe.api.models import (
     NightKeepOnRequest,
     NightSchedulerSettingsRequest,
     OptimizerConfig,
+    OverlayAppearanceRequest,
     SchedulerDropboxRequest,
     OptimizerConfigRequest,
     OptimizerRunRequest,
@@ -1806,6 +1807,10 @@ def create_app(
             raise HTTPException(status_code=404, detail="Catalog entry not found")
         return row
 
+    @app.get("/api/catalog/history", tags=["Catalog"], summary="Per-media change history")
+    async def api_catalog_history(rel_path: str = Query(...)) -> dict[str, Any]:
+        return {"rel_path": rel_path, "events": _require_catalog().get_history(rel_path)}
+
     @app.put("/api/catalog/item", tags=["Catalog"], summary="Update one catalog entry")
     async def api_catalog_update(
         payload: CatalogUpdateRequest, rel_path: str = Query(...)
@@ -1875,15 +1880,42 @@ def create_app(
             mtime = 0
         key = hashlib.sha1(f"{rel_path}:{mtime}".encode()).hexdigest()
         dest = os.path.join(cache_dir, f"{key}.jpg")
+        ext = os.path.splitext(src)[1].lower()
+        is_video = ext in (".mp4", ".mov", ".m4v", ".avi", ".mkv", ".webm", ".3gp")
+        # Cache key includes mtime, so a replaced video/photo invalidates the old
+        # thumbnail automatically (old key file simply stops being requested).
         if not os.path.isfile(dest):
-            try:
-                with Image.open(src) as im:
-                    im = ImageOps.exif_transpose(im)
-                    im.thumbnail((320, 320), Image.Resampling.LANCZOS)
-                    out = im if im.mode in ("RGB", "L") else im.convert("RGB")
-                    out.save(dest, format="JPEG", quality=82)
-            except Exception as exc:  # pragma: no cover - non-image or unreadable
-                raise HTTPException(status_code=415, detail=f"No thumbnail: {exc}") from exc
+            if is_video:
+                # Extract one representative frame with ffmpeg (seek ~1s, scale to
+                # 320 wide preserving aspect). Never loads the whole video.
+                try:
+                    proc = subprocess.run(
+                        ["ffmpeg", "-y", "-ss", "1", "-i", src, "-frames:v", "1",
+                         "-vf", "scale=320:-1", "-q:v", "4", dest],
+                        capture_output=True, text=True, timeout=30,
+                    )
+                    if proc.returncode != 0 or not os.path.isfile(dest):
+                        # Fallback: try frame 0 (very short clips).
+                        subprocess.run(
+                            ["ffmpeg", "-y", "-i", src, "-frames:v", "1",
+                             "-vf", "scale=320:-1", "-q:v", "4", dest],
+                            capture_output=True, text=True, timeout=30,
+                        )
+                    if not os.path.isfile(dest):
+                        raise HTTPException(status_code=415, detail="No video frame")
+                except FileNotFoundError as exc:
+                    raise HTTPException(status_code=503, detail="ffmpeg unavailable") from exc
+                except subprocess.TimeoutExpired as exc:
+                    raise HTTPException(status_code=504, detail="thumbnail timeout") from exc
+            else:
+                try:
+                    with Image.open(src) as im:
+                        im = ImageOps.exif_transpose(im)
+                        im.thumbnail((320, 320), Image.Resampling.LANCZOS)
+                        out = im if im.mode in ("RGB", "L") else im.convert("RGB")
+                        out.save(dest, format="JPEG", quality=82)
+                except Exception as exc:  # pragma: no cover - non-image or unreadable
+                    raise HTTPException(status_code=415, detail=f"No thumbnail: {exc}") from exc
         return FileResponse(dest, media_type="image/jpeg", headers={
             "Cache-Control": "public, max-age=3600",
         })
@@ -2092,6 +2124,73 @@ def create_app(
             "catalog_db": "ok" if catalog_ok else "Indisponível",
             "night_scheduler": "ok" if night_scheduler_service is not None else "Indisponível",
         }
+
+    # -- HDMI overlay appearance (per element) — Missao 06 item 1 ----------
+
+    def _overlay_appearance_state() -> dict[str, Any]:
+        if config_repository is None:
+            return {}
+        fmt = str(config_repository.get_app_config("viewer.text_overlay_format", "description date"))
+        return {
+            "clock_enabled": config_repository.get_app_config_bool("viewer.show_clock", True),
+            "clock_color": config_repository.get_app_config("viewer.clock_color", "#f8fafc"),
+            "clock_size": int(config_repository.get_app_config("viewer.clock_text_sz", 120)),
+            "clock_opacity": float(config_repository.get_app_config("viewer.clock_opacity", 1.0)),
+            "description_enabled": "description" in fmt,
+            "date_enabled": "date" in fmt,
+            "text_color": config_repository.get_app_config("viewer.text_color", "#f8fafc"),
+            "text_size": int(config_repository.get_app_config("viewer.show_text_sz", 40)),
+            "text_opacity": float(config_repository.get_app_config("viewer.text_opacity", 1.0)),
+            "text_bg_color": config_repository.get_app_config("viewer.text_bg_color", "#000000"),
+            "text_bg_opacity": float(config_repository.get_app_config("viewer.text_bg_opacity", 0.35)),
+        }
+
+    @app.get("/api/overlay/appearance", tags=["Overlay"], summary="HDMI overlay appearance")
+    async def api_overlay_appearance_get() -> dict[str, Any]:
+        return _overlay_appearance_state()
+
+    @app.put("/api/overlay/appearance", tags=["Overlay"], summary="Set HDMI overlay appearance")
+    async def api_overlay_appearance_set(payload: OverlayAppearanceRequest) -> dict[str, Any]:
+        if config_repository is None:
+            raise HTTPException(status_code=503, detail="Config repository unavailable")
+        p = payload
+        if p.clock_enabled is not None:
+            config_repository.set_app_config("viewer.show_clock", bool(p.clock_enabled))
+        if p.clock_color is not None:
+            config_repository.set_app_config("viewer.clock_color", p.clock_color)
+        if p.clock_size is not None:
+            config_repository.set_app_config("viewer.clock_text_sz", int(p.clock_size))
+        if p.clock_opacity is not None:
+            config_repository.set_app_config("viewer.clock_opacity", float(p.clock_opacity))
+        if p.text_color is not None:
+            config_repository.set_app_config("viewer.text_color", p.text_color)
+        if p.text_size is not None:
+            config_repository.set_app_config("viewer.show_text_sz", int(p.text_size))
+        if p.text_opacity is not None:
+            config_repository.set_app_config("viewer.text_opacity", float(p.text_opacity))
+        if p.text_bg_color is not None:
+            config_repository.set_app_config("viewer.text_bg_color", p.text_bg_color)
+        if p.text_bg_opacity is not None:
+            config_repository.set_app_config("viewer.text_bg_opacity", float(p.text_bg_opacity))
+        # Description/date show-hide is expressed via text_overlay_format membership.
+        if p.description_enabled is not None or p.date_enabled is not None:
+            cur = str(config_repository.get_app_config("viewer.text_overlay_format", "description date"))
+            desc_on = ("description" in cur) if p.description_enabled is None else p.description_enabled
+            date_on = ("date" in cur) if p.date_enabled is None else p.date_enabled
+            parts = (["description"] if desc_on else []) + (["date"] if date_on else [])
+            config_repository.set_app_config("viewer.text_overlay_format", " ".join(parts))
+            config_repository.set_app_config("viewer.show_text_enabled", bool(parts))
+        # Apply live: rebuild the renderer config and publish it to the renderer.
+        if event_publisher is not None and resource_paths is not None:
+            try:
+                from picframe.core.events.dto import RendererConfigUpdatedEvent
+                from picframe.core.services.renderer_config import build_renderer_config
+
+                cfg = build_renderer_config(config_repository, resource_paths)
+                event_publisher.publish(RendererConfigUpdatedEvent(config=cfg))
+            except Exception as exc:  # pragma: no cover
+                logger.warning("Could not apply overlay appearance live: %s", exc)
+        return _overlay_appearance_state()
 
     @app.get(
         "/api/system/locales",

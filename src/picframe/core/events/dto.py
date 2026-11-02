@@ -207,6 +207,11 @@ class RendererConfig:
     clock_hgt_offset_pct: float = 3.0
     clock_extra_source: str = "off"
     clock_extra_text: str = ""
+    # Per-element appearance (Missao 06 item 1). Colours are "#rrggbb". The clock
+    # is rendered separately so it is fully independent; the description+date
+    # share one bottom-left line, so they share the text colour/size but have
+    # independent show/hide (via text_overlay_format).
+    clock_color: str = "#f8fafc"
     show_text_enabled: bool = True
     text_overlay_format: str = "title caption name date folder location"
     show_text_fm: str = "%b %d, %Y"
@@ -215,6 +220,9 @@ class RendererConfig:
     show_text_sz: int = 40
     text_bkg_hgt: float = 0.25
     text_opacity: float = 1.0
+    text_color: str = "#f8fafc"
+    text_bg_color: str = "#000000"
+    text_bg_opacity: float = 0.35
     text_x_margin: int = 100
     text_y_margin: int = 0
     geo_suppress_list: list[str] = field(default_factory=list)

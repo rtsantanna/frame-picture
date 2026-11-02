@@ -22,6 +22,7 @@ import re
 import subprocess
 import threading
 import time
+import uuid
 from typing import Any
 
 from picframe.core.repositories.interfaces import IConfigRepository
@@ -327,10 +328,46 @@ class CatalogService:
 
     # -- writes (approval) -------------------------------------------------
 
-    def update(self, rel_path: str, fields: dict[str, Any]) -> bool:
+    def update(
+        self, rel_path: str, fields: dict[str, Any], origin: str = "manual",
+        batch_id: str | None = None,
+    ) -> bool:
         if "approved_description" in fields:
             fields.setdefault("edited_manually", 1)
-        return self._repo.update_fields(rel_path, fields)
+        before = self._repo.get(rel_path) or {}
+        ok = self._repo.update_fields(rel_path, fields)
+        if ok:
+            self._record_changes(rel_path, before, fields, origin, batch_id)
+        return ok
+
+    def _record_changes(
+        self, rel_path: str, before: dict[str, Any], fields: dict[str, Any],
+        origin: str, batch_id: str | None,
+    ) -> None:
+        """Write a history event per meaningful field change."""
+        if "approved_description" in fields:
+            old = before.get("approved_description")
+            new = fields["approved_description"]
+            if old != new:
+                event = "description_created" if not old else "description_edited"
+                self._repo.add_event(rel_path, event, "approved_description", old, new,
+                                     origin, batch_id)
+        if "status" in fields and before.get("status") != fields["status"]:
+            ev = {"approved": "approved", "review": "marked_review",
+                  "pending": "unapproved"}.get(fields["status"], "status_changed")
+            self._repo.add_event(rel_path, ev, "status", before.get("status"),
+                                 fields["status"], origin, batch_id)
+        if "visible" in fields and before.get("visible") != fields["visible"]:
+            ev = "hidden" if fields["visible"] == 0 else "shown"
+            self._repo.add_event(rel_path, ev, "visible", before.get("visible"),
+                                 fields["visible"], origin, batch_id)
+        if "suggestion" in fields and before.get("suggestion") != fields.get("suggestion"):
+            self._repo.add_event(rel_path, "suggestion_changed", "suggestion",
+                                 before.get("suggestion"), fields.get("suggestion"),
+                                 origin, batch_id)
+
+    def get_history(self, rel_path: str) -> list[dict[str, Any]]:
+        return self._repo.get_history(rel_path)
 
     def batch(
         self,
@@ -346,6 +383,7 @@ class CatalogService:
         suggestion is "no info" are ignored by ``approve_suggestion``.
         """
         changed = skipped = ignored = 0
+        bid = uuid.uuid4().hex[:12]
         for rel in rel_paths:
             row = self._repo.get(rel)
             if row is None:
@@ -354,10 +392,11 @@ class CatalogService:
                 if row["status"] == "approved" and not overwrite_approved:
                     skipped += 1
                     continue
-                self._repo.update_fields(
+                self.update(
                     rel,
                     {"approved_description": description, "status": "approved",
                      "edited_manually": 1},
+                    origin="batch", batch_id=bid,
                 )
                 changed += 1
             elif action == "approve_suggestion":
@@ -368,18 +407,19 @@ class CatalogService:
                 if row["status"] == "approved" and not overwrite_approved:
                     skipped += 1
                     continue
-                self._repo.update_fields(
-                    rel, {"approved_description": sug, "status": "approved"}
+                self.update(
+                    rel, {"approved_description": sug, "status": "approved"},
+                    origin="batch", batch_id=bid,
                 )
                 changed += 1
             elif action == "mark_review":
-                self._repo.update_fields(rel, {"status": "review"})
+                self.update(rel, {"status": "review"}, origin="batch", batch_id=bid)
                 changed += 1
             elif action == "hide":
-                self._repo.update_fields(rel, {"visible": 0})
+                self.update(rel, {"visible": 0}, origin="batch", batch_id=bid)
                 changed += 1
             elif action == "show":
-                self._repo.update_fields(rel, {"visible": 1})
+                self.update(rel, {"visible": 1}, origin="batch", batch_id=bid)
                 changed += 1
         return {"changed": changed, "skipped": skipped, "ignored": ignored,
                 "requested": len(rel_paths)}

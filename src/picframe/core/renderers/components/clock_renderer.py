@@ -14,6 +14,19 @@ import pi3d
 from picframe.core.events.dto import OverlayConfig
 from picframe.core.renderers.components.justify_utils import edge_justify_x
 
+
+def hex_rgb(value: str, default: tuple[int, int, int] = (248, 250, 252)) -> tuple[int, int, int]:
+    """Parse ``#rrggbb`` / ``#rgb`` -> (r, g, b); fall back to ``default``."""
+    s = str(value or "").strip().lstrip("#")
+    try:
+        if len(s) == 3:
+            s = "".join(c * 2 for c in s)
+        if len(s) == 6:
+            return (int(s[0:2], 16), int(s[2:4], 16), int(s[4:6], 16))
+    except ValueError:
+        pass
+    return default
+
 CLOCK_EXTRA_TXT_PATH = "/dev/shm/clock.txt"
 
 
@@ -170,7 +183,7 @@ class ClockRenderer:
                     shader=self._shader,
                     justify=justify,
                     width=width,
-                    color=(255, 255, 255, opacity),
+                    color=(*hex_rgb(getattr(self._config, "clock_color", "#f8fafc")), opacity),
                 )
 
                 # #728: edge-based x positioning for L/R clock justify — the clock

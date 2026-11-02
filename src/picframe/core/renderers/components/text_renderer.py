@@ -11,6 +11,7 @@ import numpy as np
 import pi3d
 
 from picframe.core.events.dto import OverlayConfig
+from picframe.core.renderers.components.clock_renderer import hex_rgb
 from picframe.core.renderers.components.justify_utils import edge_justify_x
 
 
@@ -66,6 +67,10 @@ class TextRenderer:
         alpha_values = np.linspace(0.0, max_alpha * brightness, height, dtype=np.float32)
         alpha = np.clip(alpha_values, 0.0, 255.0).astype(np.uint8)
         rgba = np.zeros((height, 1, 4), dtype=np.uint8)
+        r, g, b = getattr(self, "_bg_rgb", (0, 0, 0))
+        rgba[:, :, 0] = r
+        rgba[:, :, 1] = g
+        rgba[:, :, 2] = b
         rgba[:, :, 3] = alpha[:, np.newaxis]
         return pi3d.Texture(rgba, blend=True, free_after_load=True)
 
@@ -81,7 +86,8 @@ class TextRenderer:
         is scaled to ``band_height`` via GPU so the texture is not rebuilt when
         only the band height changes.
         """
-        sig = (int(texture_height), int(max_alpha), round(float(brightness), 6))
+        sig = (int(texture_height), int(max_alpha), round(float(brightness), 6),
+               getattr(self, "_bg_rgb", (0, 0, 0)))
         if self._gradient_texture is not None and sig == self._gradient_texture_sig:
             return self._gradient_texture
         self._gradient_texture = self._build_gradient_texture(texture_height, max_alpha, brightness)
@@ -206,7 +212,7 @@ class TextRenderer:
                     justify=justify,
                     width=width,
                     margin=5.0,
-                    color=(255, 255, 255, opacity),
+                    color=(*hex_rgb(getattr(config, "text_color", "#f8fafc")), opacity),
                     background_color=None,
                 )
 
@@ -258,7 +264,9 @@ class TextRenderer:
             if use_gradient and gradient_specs:
                 # Paddy's #719 feedback: build texture at full render height for
                 # a smoother gradient; sprite is scaled to band_height via GPU.
-                texture = self._get_gradient_texture(render_h, int(255 * 0.45), brightness)
+                self._bg_rgb = hex_rgb(getattr(config, "text_bg_color", "#000000"), (0, 0, 0))
+                bg_alpha = int(255 * min(max(getattr(config, "text_bg_opacity", 0.35), 0.0), 1.0))
+                texture = self._get_gradient_texture(render_h, bg_alpha, brightness)
                 self._background_sprites = self._adjust_gradient_sprites(
                     texture, gradient_specs, band_height
                 )

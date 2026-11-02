@@ -55,6 +55,7 @@ def build_renderer_config(
         clock_justify=str(config_repository.get_app_config("viewer.clock_justify", "R")),
         clock_text_sz=int(config_repository.get_app_config("viewer.clock_text_sz", 120)),
         clock_opacity=float(config_repository.get_app_config("viewer.clock_opacity", 1.0)),
+        clock_color=str(config_repository.get_app_config("viewer.clock_color", "#f8fafc")),
         clock_top_bottom=str(config_repository.get_app_config("viewer.clock_top_bottom", "T")),
         clock_wdt_offset_pct=float(
             config_repository.get_app_config("viewer.clock_wdt_offset_pct", 3.0)
@@ -78,6 +79,9 @@ def build_renderer_config(
         show_text_sz=int(config_repository.get_app_config("viewer.show_text_sz", 40)),
         text_bkg_hgt=float(config_repository.get_app_config("viewer.text_bkg_hgt", 0.25)),
         text_opacity=float(config_repository.get_app_config("viewer.text_opacity", 1.0)),
+        text_color=str(config_repository.get_app_config("viewer.text_color", "#f8fafc")),
+        text_bg_color=str(config_repository.get_app_config("viewer.text_bg_color", "#000000")),
+        text_bg_opacity=float(config_repository.get_app_config("viewer.text_bg_opacity", 0.35)),
         text_x_margin=int(config_repository.get_app_config("viewer.text_x_margin", 100)),
         text_y_margin=int(config_repository.get_app_config("viewer.text_y_margin", 0)),
         geo_suppress_list=_string_list(

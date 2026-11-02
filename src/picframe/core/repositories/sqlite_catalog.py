@@ -95,6 +95,23 @@ CATALOG_MIGRATIONS = [
         );
         """,
     ),
+    Migration(
+        version=3,
+        up_script="""
+        CREATE TABLE IF NOT EXISTS catalog_history (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            rel_path   TEXT NOT NULL,
+            ts         REAL NOT NULL,
+            event      TEXT NOT NULL,
+            field      TEXT,
+            old_value  TEXT,
+            new_value  TEXT,
+            origin     TEXT,
+            batch_id   TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_hist_rel ON catalog_history(rel_path, ts);
+        """,
+    ),
 ]
 
 # Named filters -> SQL WHERE fragment (no user input interpolated).
@@ -307,3 +324,36 @@ class SQLiteCatalogRepository:
                 "ON CONFLICT(key) DO UPDATE SET place=excluded.place, ts=excluded.ts",
                 (self._geo_key(lat, lon), place, time.time()),
             )
+
+    # -- history (Missao 06 item 2) ---------------------------------------
+
+    def add_event(
+        self,
+        rel_path: str,
+        event: str,
+        field: str | None = None,
+        old_value: Any = None,
+        new_value: Any = None,
+        origin: str = "manual",
+        batch_id: str | None = None,
+    ) -> None:
+        with self._lock:
+            self._conn.execute(
+                "INSERT INTO catalog_history "
+                "(rel_path, ts, event, field, old_value, new_value, origin, batch_id) "
+                "VALUES (?,?,?,?,?,?,?,?)",
+                (
+                    rel_path, time.time(), event, field,
+                    None if old_value is None else str(old_value),
+                    None if new_value is None else str(new_value),
+                    origin, batch_id,
+                ),
+            )
+
+    def get_history(self, rel_path: str, limit: int = 200) -> list[dict[str, Any]]:
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT * FROM catalog_history WHERE rel_path=? ORDER BY ts DESC, id DESC LIMIT ?",
+                (rel_path, limit),
+            ).fetchall()
+        return [dict(r) for r in rows]
