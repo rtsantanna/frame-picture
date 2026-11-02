@@ -380,7 +380,18 @@ class CatalogService:
         """
         row = self._repo.get(rel_path)
         if row is None:
-            return None
+            # The media may not be curated yet (e.g. rotated straight from the
+            # Remote). Create a minimal durable row so the rotation can be stored.
+            filename = os.path.basename(rel_path)
+            ext = os.path.splitext(filename)[1].lower()
+            video_exts = {".mp4", ".mov", ".m4v", ".avi", ".mkv", ".webm", ".3gp"}
+            media_type = "video" if ext in video_exts else "photo"
+            self._repo.upsert_scanned(
+                rel_path, {"filename": filename, "media_type": media_type}
+            )
+            row = self._repo.get(rel_path)
+            if row is None:
+                return None
         try:
             current = int(row.get("manual_rotation") or 0) % 360
         except (TypeError, ValueError):

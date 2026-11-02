@@ -387,6 +387,8 @@ class PlaybackEngine:
             self.stop()
         elif event.command == Command.RESTART_PLAYLIST:
             self._handle_restart_playlist_command()
+        elif event.command == Command.RELOAD:
+            self._redisplay_current_media()
         elif event.command == Command.DELETE:
             self._handle_delete_command(event.payload)
         elif event.command == Command.PURGE_FILES:
@@ -405,6 +407,38 @@ class PlaybackEngine:
         """
         self._playlist_manager.restart_playlist()
         self._trigger_next_media()
+
+    def _redisplay_current_media(self) -> None:
+        """Re-render the current still image in place (e.g. after a manual
+        rotation applied from the Remote), without advancing the playlist.
+
+        Videos are left untouched; the rotation takes effect the next time the
+        image is shown for them.
+        """
+        if not self._renderer_started:
+            return
+        display_item = self._as_display_item(self._playlist_manager.get_current())
+        if not display_item:
+            return
+        media_item = display_item.primary
+        if self._is_video_media(media_item, self._video_extensions()):
+            return
+        overlay_config = self._build_overlay_config(display_item)
+        if self._video_player:
+            self._video_player.stop()
+        if display_item.layout == DisplayLayout.PORTRAIT_PAIR:
+            render_cmd = self._pair_render_command(display_item, overlay_config)
+        else:
+            render_cmd = RenderCommand(
+                image_path=media_item.filepath,
+                overlay=overlay_config,
+            )
+        try:
+            self._renderer.execute(render_cmd)
+            self._next_transition_time = time.time() + self._time_delay
+            self._change_state(State.PLAYING)
+        except MediaProcessingError as e:
+            self._handle_media_error(e)
 
     def _has_active_video_playback(self) -> bool:
         return hasattr(self, "_active_video_media")

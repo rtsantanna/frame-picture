@@ -1510,6 +1510,8 @@ def create_app(
                                 event_publisher.publish(
                                     CommandEvent(command=Command.RESTART_PLAYLIST)
                                 )
+                            elif command_str == "RELOAD":
+                                event_publisher.publish(CommandEvent(command=Command.RELOAD))
                             elif command_str == "REBOOT_HOST":
                                 event_publisher.publish(CommandEvent(command=Command.REBOOT_HOST))
                             elif command_str == "SHUTDOWN_HOST":

@@ -44,6 +44,7 @@ class Command(Enum):
     SET_BRIGHTNESS = auto()
     REQUEST_STATE = auto()
     RESTART_PLAYLIST = auto()
+    RELOAD = auto()
 
 
 class State(Enum):
