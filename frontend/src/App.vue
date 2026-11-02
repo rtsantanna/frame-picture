@@ -19,8 +19,8 @@ const navItems = computed(() => [
   { to: '/appearance', label: t('nav.appearance'), shortLabel: t('nav.appearanceShort') },
   { to: '/settings', label: t('nav.settings'), shortLabel: t('nav.settings') },
   { to: '/optimizer', label: t('nav.optimizer'), shortLabel: t('nav.optimizerShort') },
-  { to: '/night', label: 'Noite', shortLabel: 'Noite' },
-  { to: '/logs', label: t('nav.logs'), shortLabel: t('nav.logs') }
+  { to: '/agendador', label: 'Agendador', shortLabel: 'Agendador' },
+  { to: '/sistema', label: 'Sistema', shortLabel: 'Sistema' }
 ])
 
 onMounted(() => {

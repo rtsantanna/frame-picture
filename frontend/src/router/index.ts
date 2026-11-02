@@ -30,14 +30,14 @@ const router = createRouter({
       component: () => import('../views/OptimizerView.vue')
     },
     {
-      path: '/night',
-      name: 'night',
-      component: () => import('../views/NightView.vue')
+      path: '/agendador',
+      name: 'agendador',
+      component: () => import('../views/AgendadorView.vue')
     },
     {
-      path: '/logs',
-      name: 'logs',
-      component: () => import('../views/LogsView.vue')
+      path: '/sistema',
+      name: 'sistema',
+      component: () => import('../views/SistemaView.vue')
     }
   ]
 })

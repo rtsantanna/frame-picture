@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useCatalogStore, type CatalogItem } from '../stores/catalog'
 
 const store = useCatalogStore()
@@ -75,41 +75,16 @@ watch(search, () => {
   searchTimer = window.setTimeout(() => { page.value = 1; refresh() }, 350)
 })
 
-let syncPoll: number | undefined
 onMounted(() => {
   refreshAll()
   store.fetchSettings()
-  store.fetchSync()
-  store.fetchDivergences()
-  syncPoll = window.setInterval(() => store.fetchSync(), 4000)
 })
-onBeforeUnmount(() => { if (syncPoll) window.clearInterval(syncPoll) })
 
-const syncing = computed(() => (store.sync as Record<string, unknown>).running === true)
-async function syncNow() {
-  await store.syncNow()
-  // When the sync finishes, refresh catalog + divergences.
-  const started = Date.now()
-  const poll = window.setInterval(async () => {
-    await store.fetchSync()
-    if (!syncing.value || Date.now() - started > 120000) {
-      window.clearInterval(poll)
-      await store.scan()
-      await store.fetchDivergences()
-      await refreshAll()
-    }
-  }, 3000)
-}
 async function toggleGeocode(v: boolean) {
   await store.saveSettings({ geocode_enabled: v })
 }
 async function toggleUnapproved(v: boolean) {
   await store.saveSettings({ show_unapproved_on_hdmi: v })
-}
-function fmtEpoch(v: unknown): string {
-  const n = Number(v)
-  if (!n) return '—'
-  return new Date(n * 1000).toLocaleString('pt-BR')
 }
 
 function toggleExtra(id: string) {
@@ -284,59 +259,16 @@ const statusLabel: Record<string, string> = { approved: 'Aprovado', pending: 'Pe
       {{ store.error }}
     </div>
 
-    <!-- Sincronização + ajustes -->
-    <section class="space-y-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800/90">
-      <div class="flex flex-wrap items-center gap-3">
-        <button type="button"
-          class="inline-flex items-center gap-2 rounded-lg bg-sky-600 px-3 py-2 text-sm font-semibold text-white hover:bg-sky-700 disabled:opacity-60"
-          :disabled="syncing" @click="syncNow">
-          {{ syncing ? 'Sincronizando…' : 'Sincronizar agora' }}
-        </button>
-        <span class="text-xs text-gray-500 dark:text-gray-400">
-          Última: {{ fmtEpoch((store.sync as any).last_sync_epoch) }}
-          · resultado: <b>{{ (store.sync as any).result ?? '—' }}</b>
-          · novos: <b>{{ (store.sync as any).new_files ?? 0 }}</b>
-          · total: <b>{{ (store.sync as any).total_files ?? 0 }}</b>
-          · duração: {{ (store.sync as any).duration_s ?? 0 }}s
-        </span>
-        <span class="ml-auto text-xs text-gray-500 dark:text-gray-400">Agendamento automático: a cada 10 min</span>
-      </div>
-      <div class="flex flex-wrap gap-5 border-t border-gray-100 pt-3 dark:border-gray-700/60">
-        <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-          <input type="checkbox" :checked="store.settings.geocode_enabled" @change="toggleGeocode(($event.target as HTMLInputElement).checked)" />
-          Geocodificação GPS (consulta externa por coordenadas)
-        </label>
-        <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-          <input type="checkbox" :checked="store.settings.show_unapproved_on_hdmi" @change="toggleUnapproved(($event.target as HTMLInputElement).checked)" />
-          Exibir sugestões não aprovadas na HDMI
-        </label>
-      </div>
-      <!-- Divergências Dropbox -->
-      <div v-if="store.divergences.length" class="border-t border-gray-100 pt-3 dark:border-gray-700/60">
-        <h3 class="mb-2 text-sm font-semibold text-amber-700 dark:text-amber-300">
-          Divergências Dropbox ({{ store.divergences.length }})
-        </h3>
-        <div class="overflow-x-auto">
-          <table class="w-full text-left text-xs">
-            <thead class="text-gray-400">
-              <tr><th class="p-1">Arquivo</th><th class="p-1">Situação</th><th class="p-1">Tam. remoto</th><th class="p-1">Detectado</th></tr>
-            </thead>
-            <tbody>
-              <tr v-for="(d, i) in store.divergences" :key="i" class="border-t border-gray-100 dark:border-gray-700/60">
-                <td class="p-1 font-mono">{{ (d as any).path }}</td>
-                <td class="p-1">
-                  <span class="rounded-full bg-amber-100 px-2 py-0.5 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
-                    {{ (d as any).status === 'updated_source' ? 'Atualizado na origem' : (d as any).status === 'absent_source' ? 'Ausente na origem' : (d as any).status }}
-                  </span>
-                </td>
-                <td class="p-1">{{ (d as any).remote_size ?? '—' }}</td>
-                <td class="p-1">{{ fmtEpoch((d as any).detected_at) }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <p class="mt-1 text-[11px] text-gray-400">Divergências não sobrescrevem a cópia local automaticamente.</p>
-      </div>
+    <!-- Ajustes do catálogo (sincronização foi movida para Agendador → Dropbox) -->
+    <section class="flex flex-wrap gap-5 rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800/90">
+      <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+        <input type="checkbox" :checked="store.settings.geocode_enabled" @change="toggleGeocode(($event.target as HTMLInputElement).checked)" />
+        Geocodificação GPS (consulta externa por coordenadas)
+      </label>
+      <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+        <input type="checkbox" :checked="store.settings.show_unapproved_on_hdmi" @change="toggleUnapproved(($event.target as HTMLInputElement).checked)" />
+        Exibir sugestões não aprovadas na HDMI
+      </label>
     </section>
 
     <!-- Filters -->
