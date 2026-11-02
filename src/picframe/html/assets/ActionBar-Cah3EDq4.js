@@ -1,0 +1,1 @@
+import{K as e,L as t,Y as n,i as r}from"./index-dRRL_Io_.js";var i={},a={class:`flex w-full flex-wrap items-center justify-end gap-2 sm:gap-3 xl:w-auto`};function o(r,i){return e(),t(`div`,a,[n(r.$slots,`default`)])}var s=r(i,[[`render`,o]]);export{s as t};
