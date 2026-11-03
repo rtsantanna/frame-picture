@@ -59,6 +59,82 @@
     "duration": "Duration",
     "errorDetails": "Errors"
   },
+  "catalog": {
+    "title": "Memory Catalog",
+    "description": "Organize, identify, approve and control your photos and videos.",
+    "rescan": "Rescan library",
+    "scanning": "Scanning…",
+    "combine": "Combine:",
+    "searchPlaceholder": "Search name/description…",
+    "year": "Year",
+    "approvedProgress": "{approved} of {total} memories approved",
+    "geocodeToggle": "GPS geocoding (external lookup by coordinates)",
+    "showUnapprovedToggle": "Show unapproved suggestions on HDMI",
+    "selectedCount": "{n} selected",
+    "allFilterResults": "(all results in the filter)",
+    "clear": "Clear",
+    "selectPage": "Select page",
+    "selectAllResults": "Select all {n} results",
+    "notFound": "No data found",
+    "empty": "No media for this filter.",
+    "visibleTitle": "Shown in the slideshow",
+    "hiddenTitle": "Hidden from the slideshow",
+    "pageInfo": "{total} item(s) · page {page}/{pages}",
+    "prev": "Previous",
+    "next": "Next",
+    "stats": {
+      "total": "Media", "photos": "Photos", "videos": "Videos", "approved": "Approved",
+      "pending": "Pending", "review": "Review", "with_gps": "With GPS", "no_gps": "No GPS",
+      "with_suggestion": "With suggestion", "no_info": "No info", "hidden": "Hidden"
+    },
+    "filters": {
+      "all": "All", "pending": "Pending", "approved": "Approved",
+      "auto_location": "Automatic location", "with_suggestion": "With suggestion",
+      "no_info": "No info", "review": "Review", "hidden": "Hidden",
+      "with_gps": "With GPS", "no_gps": "No GPS", "photos": "Photos", "videos": "Videos",
+      "visible": "Visible", "with_date": "With date", "no_date": "No date", "edited": "Edited"
+    },
+    "sorts": {
+      "date_desc": "Date (newest)", "date_asc": "Date (oldest)",
+      "name_asc": "Name (A-Z)", "name_desc": "Name (Z-A)", "status": "Status"
+    },
+    "columns": {
+      "thumb": "Thumb", "name": "Name", "type": "Type", "date": "Date", "gps": "GPS",
+      "suggestion": "Suggestion", "description": "Approved description", "status": "Status",
+      "slideshow": "Slideshow", "actions": "Actions"
+    },
+    "type": { "photo": "Photo", "video": "Video" },
+    "status": { "approved": "Approved", "pending": "Pending", "review": "Review" },
+    "actions": {
+      "approve": "Approve", "accept": "Accept", "review": "Review",
+      "rotate": "Rotate", "rotateTitle": "Rotate (non-destructive)", "history": "History"
+    },
+    "batch": {
+      "setDescription": "Set description", "approveSuggestions": "Approve suggestions",
+      "hide": "Hide", "show": "Show", "modalTitle": "Batch description",
+      "placeholder": "e.g. Cancun Xcaret 2013",
+      "overwriteApproved": "Also replace approved descriptions",
+      "selected": "Selected", "alreadyApproved": "Already approved", "pending": "Pending",
+      "willChange": "Will change", "ignoredProtected": "Ignored (protected)", "apply": "Apply"
+    },
+    "history": {
+      "title": "History", "batch": "batch",
+      "empty": "No events recorded for this media."
+    },
+    "events": {
+      "description_created": "Description created", "description_edited": "Description changed",
+      "approved": "Approved", "marked_review": "Marked for review",
+      "unapproved": "Approval removed", "hidden": "Hidden", "shown": "Shown again",
+      "suggestion_changed": "Suggestion changed", "status_changed": "Status changed",
+      "rotation_changed": "Rotation adjusted", "rotation_reset": "Automatic rotation restored"
+    },
+    "rotateModal": {
+      "hint": "Non-destructive visual correction (the original file is not modified). Preview below.",
+      "rotation": "Rotation", "currentSaved": "(currently saved: {deg}°)",
+      "left": "90° left", "right": "90° right", "auto": "Restore automatic",
+      "confirm": "Confirm"
+    }
+  },
   "connection": {
     "live": "Live",
     "connecting": "Connecting",
@@ -208,6 +284,28 @@
   "appearance": {
     "title": "Appearance",
     "description": "Visual overlays, slide timing, and portrait pairing.",
+    "hdmi": {
+      "title": "On-screen text appearance (HDMI)",
+      "subtitle": "Description and date (bottom-left) and clock (bottom-right). Applies live, no restart.",
+      "descriptionLabel": "Description",
+      "sharedNote": "Color/size/background are shared with the Date (same line).",
+      "dateLabel": "Original date",
+      "clockLabel": "Clock",
+      "textColor": "Text color",
+      "color": "Color",
+      "size": "Size",
+      "opacity": "Opacity",
+      "bgColor": "Background color",
+      "bgOpacity": "Background opacity",
+      "videoSizing": "Video sizing on HDMI",
+      "videoSizingHelp": "Fit to screen: large video, aspect preserved, no cropping. Fill: covers the screen (may crop). Custom margin: a discrete controllable border.",
+      "mode": "Mode",
+      "modeFit": "Fit to screen",
+      "modeFill": "Fill the screen",
+      "modeMargin": "Custom margin",
+      "margin": "Margin (%)",
+      "marginHelp": "Recommended default: Custom margin, ~6% (discrete border). Takes effect on the next video playback."
+    },
     "save": "Save appearance",
     "saving": "Saving...",
     "saved": "Appearance settings saved.",
@@ -246,6 +344,92 @@
         "failed": "Could not save the overlay plugin selection."
       }
     }
+  },
+  "agendador": {
+    "title": "Scheduler",
+    "subtitle": "Nightly display standby and Dropbox sync.",
+    "tabNight": "Nightly",
+    "tabDropbox": "Dropbox",
+    "autoSync": "Automatic sync",
+    "enableSchedule": "Enable schedule",
+    "frequency": "Frequency",
+    "freqs": {
+      "5m": "5 minutes", "10m": "10 minutes", "15m": "15 minutes", "30m": "30 minutes",
+      "1h": "1 hour", "2h": "2 hours", "6h": "6 hours", "12h": "12 hours", "24h": "24 hours"
+    },
+    "cronApplied": "Applied cron expression",
+    "nextRun": "Next run",
+    "lastSync": "Last sync",
+    "statusLabel": "Status",
+    "errorLabel": "Error",
+    "saveConfig": "Save configuration",
+    "manualSync": "Manual sync",
+    "syncNow": "Sync now",
+    "syncing": "Syncing…",
+    "running": "Running…",
+    "done": "Done",
+    "failed": "Failed",
+    "start": "start",
+    "new": "new",
+    "errors": "errors",
+    "divergences": "Dropbox divergences",
+    "noDivergences": "No divergences.",
+    "colFile": "File",
+    "colStatus": "Situation",
+    "colDetected": "Detected",
+    "colAction": "Action",
+    "updatedSource": "Updated at source",
+    "absentSource": "Absent at source",
+    "updateLocal": "Update local copy",
+    "divergencesNote": "Divergences never overwrite the local copy automatically.",
+    "resolveConfirm": "Update the local copy of \"{path}\" with the Dropbox version?"
+  },
+  "sistema": {
+    "title": "System",
+    "subtitle": "Monitoring, logs and diagnostics for Frame Picture.",
+    "tabMonitoring": "Monitoring",
+    "tabLogs": "Logs",
+    "tabDiagnostics": "Diagnostics",
+    "updated": "Updated",
+    "every5s": "(every 5s)",
+    "raspberry": "Raspberry Pi",
+    "containerTitle": "Frame Picture Container",
+    "unavailable": "Unavailable",
+    "on": "On",
+    "standby": "Standby",
+    "active": "Active",
+    "inactive": "Inactive",
+    "cards": {
+      "cpu": "CPU", "ramUsed": "RAM used", "ramFree": "RAM free", "swapUsed": "Swap used",
+      "temp": "Temperature", "loadavg": "Load avg", "uptime": "Uptime", "disk": "Disk",
+      "cpuContainer": "Container CPU", "ramContainer": "Container RAM", "hdmi": "Display (HDMI)",
+      "nightScheduler": "Night scheduler"
+    }
+  },
+  "night": {
+    "title": "Night scheduler",
+    "subtitle": "Puts the display (HDMI) on standby at night and pauses the slideshow. It does not power off the Raspberry Pi or Docker.",
+    "timezone": "Timezone",
+    "scheduler": "Scheduler",
+    "active": "Active",
+    "inactive": "Inactive",
+    "display": "Display (HDMI)",
+    "on": "On",
+    "standby": "Standby",
+    "exceptionTonight": "Exception tonight",
+    "exceptionActive": "Active",
+    "exceptionInactive": "Inactive",
+    "nextOff": "Next power-off",
+    "nextOn": "Next wake-up",
+    "enableSchedule": "Enable schedule",
+    "enableHelp": "Turns the display off at the set time and back on in the morning.",
+    "offAt": "Turn off at",
+    "onAt": "Turn on at",
+    "unsaved": "Unsaved changes",
+    "keepOnTitle": "Keep the monitor on tonight",
+    "keepOnHelp": "Applies only to the next night window, survives a restart and expires on its own.",
+    "keepOn": "Keep on",
+    "cancelException": "Cancel exception"
   },
   "logs": {
     "title": "Logs",

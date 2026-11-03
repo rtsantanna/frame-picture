@@ -59,6 +59,82 @@
     "duration": "Duração",
     "errorDetails": "Erros"
   },
+  "catalog": {
+    "title": "Catálogo de Memórias",
+    "description": "Organize, identifique, aprove e controle suas fotos e vídeos.",
+    "rescan": "Reanalisar biblioteca",
+    "scanning": "Analisando…",
+    "combine": "Combinar:",
+    "searchPlaceholder": "Pesquisar nome/descrição…",
+    "year": "Ano",
+    "approvedProgress": "{approved} de {total} memórias aprovadas",
+    "geocodeToggle": "Geocodificação GPS (consulta externa por coordenadas)",
+    "showUnapprovedToggle": "Exibir sugestões não aprovadas na HDMI",
+    "selectedCount": "{n} selecionada(s)",
+    "allFilterResults": "(todos os resultados do filtro)",
+    "clear": "Limpar",
+    "selectPage": "Selecionar página",
+    "selectAllResults": "Selecionar todos os {n} resultados",
+    "notFound": "Dado não encontrado",
+    "empty": "Nenhuma mídia para este filtro.",
+    "visibleTitle": "Exibir na apresentação",
+    "hiddenTitle": "Oculto da apresentação",
+    "pageInfo": "{total} mídia(s) · página {page}/{pages}",
+    "prev": "Anterior",
+    "next": "Próxima",
+    "stats": {
+      "total": "Mídias", "photos": "Fotos", "videos": "Vídeos", "approved": "Aprovadas",
+      "pending": "Pendentes", "review": "Revisar", "with_gps": "Com GPS", "no_gps": "Sem GPS",
+      "with_suggestion": "Com sugestão", "no_info": "Sem informação", "hidden": "Ocultas"
+    },
+    "filters": {
+      "all": "Todos", "pending": "Pendentes", "approved": "Aprovados",
+      "auto_location": "Localidade automática", "with_suggestion": "Com sugestão",
+      "no_info": "Sem informação", "review": "Revisar", "hidden": "Ocultos",
+      "with_gps": "Com GPS", "no_gps": "Sem GPS", "photos": "Fotos", "videos": "Vídeos",
+      "visible": "Visíveis", "with_date": "Com data", "no_date": "Sem data", "edited": "Editados"
+    },
+    "sorts": {
+      "date_desc": "Data (mais recente)", "date_asc": "Data (mais antiga)",
+      "name_asc": "Nome (A-Z)", "name_desc": "Nome (Z-A)", "status": "Status"
+    },
+    "columns": {
+      "thumb": "Thumb", "name": "Nome", "type": "Tipo", "date": "Data", "gps": "GPS",
+      "suggestion": "Sugestão", "description": "Descrição aprovada", "status": "Status",
+      "slideshow": "Slideshow", "actions": "Ações"
+    },
+    "type": { "photo": "Foto", "video": "Vídeo" },
+    "status": { "approved": "Aprovado", "pending": "Pendente", "review": "Revisar" },
+    "actions": {
+      "approve": "Aprovar", "accept": "Aceitar", "review": "Revisar",
+      "rotate": "Rotacionar", "rotateTitle": "Rotacionar (não destrutivo)", "history": "Histórico"
+    },
+    "batch": {
+      "setDescription": "Definir descrição", "approveSuggestions": "Aprovar sugestões",
+      "hide": "Ocultar", "show": "Reexibir", "modalTitle": "Descrição em lote",
+      "placeholder": "Ex.: Cancun Xcaret 2013",
+      "overwriteApproved": "Também substituir descrições aprovadas",
+      "selected": "Selecionadas", "alreadyApproved": "Já aprovadas", "pending": "Pendentes",
+      "willChange": "Serão alteradas", "ignoredProtected": "Ignoradas (protegidas)", "apply": "Aplicar"
+    },
+    "history": {
+      "title": "Histórico", "batch": "lote",
+      "empty": "Nenhum evento registrado para esta mídia."
+    },
+    "events": {
+      "description_created": "Descrição criada", "description_edited": "Descrição alterada",
+      "approved": "Aprovada", "marked_review": "Marcada p/ revisão",
+      "unapproved": "Aprovação retirada", "hidden": "Ocultada", "shown": "Reexibida",
+      "suggestion_changed": "Sugestão alterada", "status_changed": "Status alterado",
+      "rotation_changed": "Rotação ajustada", "rotation_reset": "Rotação automática restaurada"
+    },
+    "rotateModal": {
+      "hint": "Correção visual não destrutiva (o arquivo original não é alterado). Pré-visualização abaixo.",
+      "rotation": "Rotação", "currentSaved": "(atual salvo: {deg}°)",
+      "left": "90° esquerda", "right": "90° direita", "auto": "Restaurar automático",
+      "confirm": "Confirmar"
+    }
+  },
   "connection": {
     "live": "Ao vivo",
     "connecting": "Conectando",
@@ -208,6 +284,28 @@
   "appearance": {
     "title": "Aparência",
     "description": "Sobreposições visuais, tempo dos slides e pareamento retrato.",
+    "hdmi": {
+      "title": "Aparência dos textos na HDMI",
+      "subtitle": "Descrição e data (canto inferior esquerdo) e relógio (canto inferior direito). Aplica ao vivo, sem reiniciar.",
+      "descriptionLabel": "Descrição",
+      "sharedNote": "Cor/tamanho/fundo são compartilhados com a Data (mesma linha).",
+      "dateLabel": "Data original",
+      "clockLabel": "Relógio",
+      "textColor": "Cor do texto",
+      "color": "Cor",
+      "size": "Tamanho",
+      "opacity": "Opacidade",
+      "bgColor": "Cor do fundo",
+      "bgOpacity": "Opacidade do fundo",
+      "videoSizing": "Dimensionamento dos vídeos na HDMI",
+      "videoSizingHelp": "Ajustar à tela: vídeo grande, proporção preservada, sem cortes. Preencher: cobre a tela (pode cortar). Margem personalizada: borda discreta controlável.",
+      "mode": "Modo",
+      "modeFit": "Ajustar à tela",
+      "modeFill": "Preencher a tela",
+      "modeMargin": "Margem personalizada",
+      "margin": "Margem (%)",
+      "marginHelp": "Padrão recomendado: Margem personalizada, ~6% (borda discreta). Vale após a próxima reprodução do vídeo."
+    },
     "save": "Salvar aparência",
     "saving": "Salvando...",
     "saved": "Configurações de aparência salvas.",
@@ -246,6 +344,92 @@
         "failed": "Não foi possível salvar a seleção de plugins de sobreposição."
       }
     }
+  },
+  "agendador": {
+    "title": "Agendador",
+    "subtitle": "Standby noturno da tela e sincronização do Dropbox.",
+    "tabNight": "Noturno",
+    "tabDropbox": "Dropbox",
+    "autoSync": "Sincronização automática",
+    "enableSchedule": "Habilitar agendamento",
+    "frequency": "Frequência",
+    "freqs": {
+      "5m": "5 minutos", "10m": "10 minutos", "15m": "15 minutos", "30m": "30 minutos",
+      "1h": "1 hora", "2h": "2 horas", "6h": "6 horas", "12h": "12 horas", "24h": "24 horas"
+    },
+    "cronApplied": "Expressão cron aplicada",
+    "nextRun": "Próxima execução",
+    "lastSync": "Última sincronização",
+    "statusLabel": "Status",
+    "errorLabel": "Erro",
+    "saveConfig": "Salvar configuração",
+    "manualSync": "Sincronização manual",
+    "syncNow": "Sincronizar agora",
+    "syncing": "Sincronizando…",
+    "running": "Executando…",
+    "done": "Concluído",
+    "failed": "Falhou",
+    "start": "início",
+    "new": "novos",
+    "errors": "erros",
+    "divergences": "Divergências Dropbox",
+    "noDivergences": "Nenhuma divergência.",
+    "colFile": "Arquivo",
+    "colStatus": "Situação",
+    "colDetected": "Detectado",
+    "colAction": "Ação",
+    "updatedSource": "Atualizado na origem",
+    "absentSource": "Ausente na origem",
+    "updateLocal": "Atualizar cópia local",
+    "divergencesNote": "Divergências não sobrescrevem a cópia local automaticamente.",
+    "resolveConfirm": "Atualizar a cópia local de \"{path}\" com a versão do Dropbox?"
+  },
+  "sistema": {
+    "title": "Sistema",
+    "subtitle": "Monitoramento, logs e diagnóstico do Frame Picture.",
+    "tabMonitoring": "Monitoramento",
+    "tabLogs": "Logs",
+    "tabDiagnostics": "Diagnóstico",
+    "updated": "Atualizado",
+    "every5s": "(a cada 5s)",
+    "raspberry": "Raspberry Pi",
+    "containerTitle": "Container Frame Picture",
+    "unavailable": "Indisponível",
+    "on": "Ligada",
+    "standby": "Standby",
+    "active": "Ativo",
+    "inactive": "Inativo",
+    "cards": {
+      "cpu": "CPU", "ramUsed": "RAM usada", "ramFree": "RAM livre", "swapUsed": "Swap usado",
+      "temp": "Temperatura", "loadavg": "Load avg", "uptime": "Uptime", "disk": "Disco",
+      "cpuContainer": "CPU container", "ramContainer": "RAM container", "hdmi": "Tela (HDMI)",
+      "nightScheduler": "Agendador noturno"
+    }
+  },
+  "night": {
+    "title": "Agendador noturno",
+    "subtitle": "Coloca a tela (HDMI) em standby à noite e pausa a apresentação. Não desliga o Raspberry nem o Docker.",
+    "timezone": "Fuso",
+    "scheduler": "Agendador",
+    "active": "Ativo",
+    "inactive": "Inativo",
+    "display": "Tela (HDMI)",
+    "on": "Ligada",
+    "standby": "Em standby",
+    "exceptionTonight": "Exceção desta noite",
+    "exceptionActive": "Ativa",
+    "exceptionInactive": "Inativa",
+    "nextOff": "Próximo desligamento",
+    "nextOn": "Próximo despertar",
+    "enableSchedule": "Habilitar agendamento",
+    "enableHelp": "Desliga a tela no horário e religa de manhã.",
+    "offAt": "Desligar às",
+    "onAt": "Religar às",
+    "unsaved": "Alterações não salvas",
+    "keepOnTitle": "Manter monitor ligado esta noite",
+    "keepOnHelp": "Vale só para a próxima janela noturna, sobrevive a reinício e expira sozinha.",
+    "keepOn": "Manter ligado",
+    "cancelException": "Cancelar exceção"
   },
   "logs": {
     "title": "Logs",

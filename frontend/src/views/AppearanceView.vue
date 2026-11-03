@@ -142,75 +142,74 @@ onMounted(() => appearanceStore.fetch())
     <!-- Aparência dos textos na HDMI (Missao 06) -->
     <Panel padded>
       <div class="mb-4">
-        <h2 class="text-lg font-semibold text-gray-950 dark:text-white">Aparência dos textos na HDMI</h2>
+        <h2 class="text-lg font-semibold text-gray-950 dark:text-white">{{ t('appearance.hdmi.title') }}</h2>
         <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
-          Descrição e data (canto inferior esquerdo) e relógio (canto inferior direito). Aplica ao vivo, sem reiniciar.
+          {{ t('appearance.hdmi.subtitle') }}
         </p>
       </div>
       <div class="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <!-- Descrição -->
         <div class="space-y-2 rounded-lg border border-gray-200 p-3 dark:border-gray-700">
           <div class="flex items-center justify-between">
-            <span class="text-sm font-semibold text-gray-900 dark:text-white">Descrição</span>
+            <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('appearance.hdmi.descriptionLabel') }}</span>
             <input type="checkbox" :checked="hdmi.description_enabled" @change="saveHdmi({ description_enabled: ($event.target as HTMLInputElement).checked })" />
           </div>
-          <p class="text-[11px] text-gray-400">Cor/tamanho/fundo são compartilhados com a Data (mesma linha).</p>
+          <p class="text-[11px] text-gray-400">{{ t('appearance.hdmi.sharedNote') }}</p>
         </div>
         <!-- Data -->
         <div class="space-y-2 rounded-lg border border-gray-200 p-3 dark:border-gray-700">
           <div class="flex items-center justify-between">
-            <span class="text-sm font-semibold text-gray-900 dark:text-white">Data original</span>
+            <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('appearance.hdmi.dateLabel') }}</span>
             <input type="checkbox" :checked="hdmi.date_enabled" @change="saveHdmi({ date_enabled: ($event.target as HTMLInputElement).checked })" />
           </div>
-          <label class="flex items-center justify-between text-sm">Cor do texto
+          <label class="flex items-center justify-between text-sm">{{ t('appearance.hdmi.textColor') }}
             <input type="color" :value="hdmi.text_color" @input="saveHdmi({ text_color: ($event.target as HTMLInputElement).value })" /></label>
-          <label class="flex items-center justify-between text-sm">Tamanho
+          <label class="flex items-center justify-between text-sm">{{ t('appearance.hdmi.size') }}
             <input type="number" min="8" max="200" :value="hdmi.text_size" class="w-20 rounded border px-2 py-1 text-sm dark:bg-gray-700" @change="saveHdmi({ text_size: Number(($event.target as HTMLInputElement).value) })" /></label>
-          <label class="flex items-center justify-between text-sm">Opacidade
+          <label class="flex items-center justify-between text-sm">{{ t('appearance.hdmi.opacity') }}
             <input type="number" min="0" max="1" step="0.1" :value="hdmi.text_opacity" class="w-20 rounded border px-2 py-1 text-sm dark:bg-gray-700" @change="saveHdmi({ text_opacity: Number(($event.target as HTMLInputElement).value) })" /></label>
-          <label class="flex items-center justify-between text-sm">Cor do fundo
+          <label class="flex items-center justify-between text-sm">{{ t('appearance.hdmi.bgColor') }}
             <input type="color" :value="hdmi.text_bg_color" @input="saveHdmi({ text_bg_color: ($event.target as HTMLInputElement).value })" /></label>
-          <label class="flex items-center justify-between text-sm">Opacidade do fundo
+          <label class="flex items-center justify-between text-sm">{{ t('appearance.hdmi.bgOpacity') }}
             <input type="number" min="0" max="1" step="0.05" :value="hdmi.text_bg_opacity" class="w-20 rounded border px-2 py-1 text-sm dark:bg-gray-700" @change="saveHdmi({ text_bg_opacity: Number(($event.target as HTMLInputElement).value) })" /></label>
         </div>
         <!-- Relógio -->
         <div class="space-y-2 rounded-lg border border-gray-200 p-3 dark:border-gray-700">
           <div class="flex items-center justify-between">
-            <span class="text-sm font-semibold text-gray-900 dark:text-white">Relógio</span>
+            <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('appearance.hdmi.clockLabel') }}</span>
             <input type="checkbox" :checked="hdmi.clock_enabled" @change="saveHdmi({ clock_enabled: ($event.target as HTMLInputElement).checked })" />
           </div>
-          <label class="flex items-center justify-between text-sm">Cor
+          <label class="flex items-center justify-between text-sm">{{ t('appearance.hdmi.color') }}
             <input type="color" :value="hdmi.clock_color" @input="saveHdmi({ clock_color: ($event.target as HTMLInputElement).value })" /></label>
-          <label class="flex items-center justify-between text-sm">Tamanho
+          <label class="flex items-center justify-between text-sm">{{ t('appearance.hdmi.size') }}
             <input type="number" min="8" max="400" :value="hdmi.clock_size" class="w-20 rounded border px-2 py-1 text-sm dark:bg-gray-700" @change="saveHdmi({ clock_size: Number(($event.target as HTMLInputElement).value) })" /></label>
-          <label class="flex items-center justify-between text-sm">Opacidade
+          <label class="flex items-center justify-between text-sm">{{ t('appearance.hdmi.opacity') }}
             <input type="number" min="0" max="1" step="0.1" :value="hdmi.clock_opacity" class="w-20 rounded border px-2 py-1 text-sm dark:bg-gray-700" @change="saveHdmi({ clock_opacity: Number(($event.target as HTMLInputElement).value) })" /></label>
         </div>
 
         <!-- Dimensionamento dos vídeos (Missao 06 atualizada) -->
         <div class="space-y-2 rounded-lg border border-gray-200 p-3 dark:border-gray-700 sm:col-span-2">
-          <span class="text-sm font-semibold text-gray-900 dark:text-white">Dimensionamento dos vídeos na HDMI</span>
+          <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('appearance.hdmi.videoSizing') }}</span>
           <p class="text-xs text-gray-500 dark:text-gray-400">
-            Ajustar à tela: vídeo grande, proporção preservada, sem cortes. Preencher: cobre a tela
-            (pode cortar). Margem personalizada: borda discreta controlável.
+            {{ t('appearance.hdmi.videoSizingHelp') }}
           </p>
-          <label class="flex items-center justify-between text-sm">Modo
+          <label class="flex items-center justify-between text-sm">{{ t('appearance.hdmi.mode') }}
             <select :value="hdmi.video_scaling"
               class="rounded border px-2 py-1 text-sm dark:bg-gray-700"
               @change="saveHdmi({ video_scaling: ($event.target as HTMLSelectElement).value })">
-              <option value="fit">Ajustar à tela</option>
-              <option value="fill">Preencher a tela</option>
-              <option value="margin">Margem personalizada</option>
+              <option value="fit">{{ t('appearance.hdmi.modeFit') }}</option>
+              <option value="fill">{{ t('appearance.hdmi.modeFill') }}</option>
+              <option value="margin">{{ t('appearance.hdmi.modeMargin') }}</option>
             </select>
           </label>
           <label class="flex items-center justify-between text-sm" :class="hdmi.video_scaling === 'margin' ? '' : 'opacity-50'">
-            Margem (%)
+            {{ t('appearance.hdmi.margin') }}
             <input type="number" min="0" max="45" step="1" :value="hdmi.video_margin_pct"
               :disabled="hdmi.video_scaling !== 'margin'"
               class="w-20 rounded border px-2 py-1 text-sm dark:bg-gray-700"
               @change="saveHdmi({ video_margin_pct: Number(($event.target as HTMLInputElement).value) })" />
           </label>
-          <p class="text-[11px] text-gray-400">Padrão recomendado: Margem personalizada, ~6% (borda discreta). Vale após a próxima reprodução do vídeo.</p>
+          <p class="text-[11px] text-gray-400">{{ t('appearance.hdmi.marginHelp') }}</p>
         </div>
       </div>
     </Panel>
