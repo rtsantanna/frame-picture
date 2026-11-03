@@ -344,13 +344,13 @@ function fmtTs(ts: unknown): string {
     </section>
 
     <!-- Table -->
-    <section class="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800/90">
+    <section class="rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800/90">
       <div class="flex items-center gap-3 border-b border-gray-200 px-3 py-2 text-xs dark:border-gray-700">
         <button type="button" class="font-medium text-indigo-600 hover:underline dark:text-indigo-400" @click="selectPage">{{ t('catalog.selectPage') }}</button>
         <button type="button" class="font-medium text-indigo-600 hover:underline dark:text-indigo-400" @click="selectAll">{{ t('catalog.selectAllResults', { n: store.total }) }}</button>
       </div>
       <table class="w-full text-left text-sm">
-        <thead class="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-gray-900/40 dark:text-gray-400">
+        <thead class="sticky top-14 z-20 bg-gray-50 text-xs uppercase text-gray-500 shadow-sm dark:bg-gray-900 dark:text-gray-400">
           <tr>
             <th class="w-8 p-2"></th>
             <th class="w-16 p-2">{{ t('catalog.columns.thumb') }}</th>

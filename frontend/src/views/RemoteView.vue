@@ -1191,7 +1191,7 @@ const metadataFields = computed(() => {
           >
             <!-- Transport Controls -->
             <div
-              class="mx-auto grid max-w-md grid-cols-5 items-center justify-items-center gap-2 sm:max-w-lg sm:gap-4"
+              class="mx-auto grid max-w-lg grid-cols-6 items-center justify-items-center gap-2 sm:max-w-xl sm:gap-3"
             >
               <button
                 type="button"
