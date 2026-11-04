@@ -90,6 +90,25 @@ if [ "$rc" -eq 0 ]; then result="ok"; errors=0; else result="error"; errors=1; f
 write_metrics false "$result" "$new" "$after" "$dur" "$errors"
 echo "$(date -Is) [$REASON] sync end rc=$rc new=$new total=$after dur=${dur}s" >> "$LOG"
 
+# --- catalog rescan ---------------------------------------------------------
+# The panel's catalog only learns about files through a rescan. When this run
+# brought new files, flag a pending rescan; then try to trigger it through the
+# local API. The flag is cleared only when the API answers "started", so a
+# rescan missed because the container was down, or because a scan was already
+# running ("busy"), is retried on the next run. Never fatal to the sync itself.
+SCAN_PENDING="$CONTROL/catalog-scan-pending"
+SCAN_URL="${FP_CATALOG_SCAN_URL:-http://127.0.0.1:9000/api/catalog/scan}"
+[ "$new" -gt 0 ] && touch "$SCAN_PENDING"
+if [ -f "$SCAN_PENDING" ]; then
+  scan_resp=$(curl -s --max-time 10 -X POST "$SCAN_URL" 2>/dev/null || true)
+  if printf '%s' "$scan_resp" | grep -q '"started"'; then
+    rm -f "$SCAN_PENDING"
+    echo "$(date -Is) [$REASON] catalog rescan started" >> "$LOG"
+  else
+    echo "$(date -Is) [$REASON] catalog rescan pending (api: ${scan_resp:-no response}); retry next run" >> "$LOG"
+  fi
+fi
+
 # Consume a one-shot manual trigger if present (the panel drops this file).
 rm -f "$TRIGGER" 2>/dev/null || true
 
