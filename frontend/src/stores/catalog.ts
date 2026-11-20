@@ -33,6 +33,8 @@ export interface CatalogItem {
   visible: number
   edited_manually: number
   manual_rotation?: number
+  /** Human-corrected date ("YYYY:MM:DD HH:MM:SS"); wins over capture_date. */
+  date_override?: string | null
 }
 
 export interface CatalogStats {

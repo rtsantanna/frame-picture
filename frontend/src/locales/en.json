@@ -60,6 +60,12 @@
     "errorDetails": "Errors"
   },
   "catalog": {
+    "dateSaveFailed": "Could not save the date.",
+    "dateOriginal": "Corrected date. Original: {date}",
+    "dateEditTitle": "Click to correct the date",
+    "dateReset": "Back to the original date ({date})",
+    "dateFromName": "use {date} (filename)",
+    "dateFromNameTitle": "Use the date found in the file name (e.g. WhatsApp photos)",
     "title": "Memory Catalog",
     "description": "Organize, identify, approve and control your photos and videos.",
     "rescan": "Rescan library",
@@ -88,6 +94,7 @@
       "with_suggestion": "With suggestion", "no_info": "No info", "hidden": "Hidden"
     },
     "filters": {
+      "date_edited": "Corrected date",
       "all": "All", "pending": "Pending", "approved": "Approved",
       "auto_location": "Automatic location", "with_suggestion": "With suggestion",
       "no_info": "No info", "review": "Review", "hidden": "Hidden",
@@ -122,6 +129,8 @@
       "empty": "No events recorded for this media."
     },
     "events": {
+      "date_changed": "Date corrected",
+      "date_reset": "Original date restored",
       "description_created": "Description created", "description_edited": "Description changed",
       "approved": "Approved", "marked_review": "Marked for review",
       "unapproved": "Approval removed", "hidden": "Hidden", "shown": "Shown again",
@@ -284,6 +293,66 @@
   "appearance": {
     "title": "Appearance",
     "description": "Visual overlays, slide timing, and portrait pairing.",
+    "hud": {
+      "title": "HDMI texts",
+      "subtitle": "One style for every text; each element has its own size and position. Applies live, no restart.",
+      "saveFailed": "Could not save.",
+      "styleTitle": "Style (applies to every text)",
+      "font": "Font",
+      "fonts": {
+        "noto": "Noto Sans",
+        "noto_bold": "Noto Sans Bold",
+        "dejavu": "DejaVu Sans",
+        "dejavu_bold": "DejaVu Sans Bold"
+      },
+      "color": "Color",
+      "opacity": "Opacity",
+      "bgColor": "Background band color",
+      "bgOpacity": "Background band",
+      "none": "no band",
+      "elementsTitle": "Elements",
+      "element": "Element",
+      "size": "Size",
+      "position": "Position",
+      "format": "Format",
+      "elements": {
+        "clock": "Clock",
+        "today_date": "Today's date",
+        "weather": "Weather",
+        "description": "Approved description",
+        "location": "Place (GPS)",
+        "photo_date": "Photo date"
+      },
+      "perPhoto": "changes with each photo",
+      "always": "always on screen",
+      "anchors": {
+        "TL": "Top · left",
+        "TC": "Top · center",
+        "TR": "Top · right",
+        "BL": "Bottom · left",
+        "BC": "Bottom · center",
+        "BR": "Bottom · right"
+      },
+      "formatHelp": "Formats: %H:%M = 18:25 · %d/%m/%Y = 20/11/2026 · %a = Fri · %A = Friday · %b = Nov · %B = November. Elements on the same position stack.",
+      "locationHint": "The place comes from the photos' GPS. Turn on \"GPS location\" in Photos and run \"Rescan\" to fill the places.",
+      "showOnVideo": "Show photo texts on videos too",
+      "showOnVideoHelp": "Off: videos only show the clock, today's date and the weather.",
+      "weather": {
+        "title": "Weather location",
+        "help": "The Raspberry Pi has no GPS and internet geolocation is approximate (usually the ISP's city), so pick the city here. Data: Open-Meteo, no key; only the city's coordinates are sent.",
+        "placeholder": "Search a city",
+        "search": "Search",
+        "searching": "Searching…",
+        "noResults": "No city found.",
+        "searchFailed": "Search failed. Is the Pi online?",
+        "noData": "No weather reading yet.",
+        "noPlace": "No city selected",
+        "refresh": "Refresh",
+        "needPlace": "Pick a city so the weather shows on the HDMI."
+      },
+      "preview": "Preview",
+      "previewHelp": "Approximate screen preview (1920×1080) with sample texts."
+    },
     "hdmi": {
       "title": "On-screen text appearance (HDMI)",
       "subtitle": "Description and date (bottom-left) and clock (bottom-right). Applies live, no restart.",

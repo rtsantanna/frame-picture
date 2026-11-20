@@ -861,7 +861,7 @@ function setBackgroundColor(event: Event) {
               :title="t('settings.domain.display')"
               :description="t('settings.domain.displayDescription')"
             >
-              <FieldRow
+              <FieldRow wide
                 :label="t('settings.displayMode')"
                 :help="sectionHelp('viewer', 'display_w')"
               >
@@ -965,7 +965,7 @@ function setBackgroundColor(event: Event) {
               :title="t('settings.domain.textAndClock')"
               :description="t('settings.domain.textAndClockDescription')"
             >
-              <FieldRow
+              <FieldRow wide
                 :label="formatLabel('text_justify')"
                 :help="sectionHelp('viewer', 'text_justify')"
               >
@@ -1045,7 +1045,7 @@ function setBackgroundColor(event: Event) {
               >
                 <NumberField v-model="localConfig.viewer.text_y_margin" :step="1" />
               </FieldRow>
-              <FieldRow
+              <FieldRow wide
                 :label="t('settings.clockHourMode')"
                 :help="t('settings.clockHourModeHelp')"
               >
@@ -1091,7 +1091,7 @@ function setBackgroundColor(event: Event) {
                   class="block w-full rounded-lg border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                 />
               </FieldRow>
-              <FieldRow
+              <FieldRow wide
                 :label="formatLabel('clock_top_bottom')"
                 :help="sectionHelp('viewer', 'clock_top_bottom')"
               >
@@ -1103,7 +1103,7 @@ function setBackgroundColor(event: Event) {
                   ]"
                 />
               </FieldRow>
-              <FieldRow
+              <FieldRow wide
                 :label="formatLabel('clock_justify')"
                 :help="sectionHelp('viewer', 'clock_justify')"
               >
@@ -1160,7 +1160,7 @@ function setBackgroundColor(event: Event) {
               :title="t('settings.domain.mattingEdges')"
               :description="t('settings.domain.mattingEdgesDescription')"
             >
-              <FieldRow
+              <FieldRow wide
                 :label="formatLabel('mat_images')"
                 :help="sectionHelp('viewer', 'mat_images')"
               >
@@ -1182,7 +1182,7 @@ function setBackgroundColor(event: Event) {
                   />
                 </div>
               </FieldRow>
-              <FieldRow :label="formatLabel('mat_type')" :help="sectionHelp('viewer', 'mat_type')">
+              <FieldRow wide :label="formatLabel('mat_type')" :help="sectionHelp('viewer', 'mat_type')">
                 <TokenListEditor
                   :model-value="matTypesArray()"
                   placeholder="float"
@@ -1272,7 +1272,7 @@ function setBackgroundColor(event: Event) {
                   :step="0.05"
                 />
               </FieldRow>
-              <FieldRow
+              <FieldRow wide
                 :label="formatLabel('mat_resource_folder')"
                 :help="sectionHelp('viewer', 'mat_resource_folder')"
               >
@@ -1285,7 +1285,7 @@ function setBackgroundColor(event: Event) {
               :title="t('settings.domain.rendererBackend')"
               :description="t('settings.domain.rendererBackendDescription')"
             >
-              <FieldRow
+              <FieldRow wide
                 :label="formatLabel('font_file')"
                 :help="sectionHelp('viewer', 'font_file')"
               >
@@ -1295,7 +1295,7 @@ function setBackgroundColor(event: Event) {
                   :extensions="fontExtensions"
                 />
               </FieldRow>
-              <FieldRow :label="formatLabel('shader')" :help="sectionHelp('viewer', 'shader')">
+              <FieldRow wide :label="formatLabel('shader')" :help="sectionHelp('viewer', 'shader')">
                 <ShaderPicker v-model="localConfig.viewer.shader" />
               </FieldRow>
               <FieldRow
@@ -1315,7 +1315,7 @@ function setBackgroundColor(event: Event) {
                 </select>
               </FieldRow>
               <FieldRow :label="formatLabel('use_glx')" :help="sectionHelp('viewer', 'use_glx')">
-                <div class="space-y-2">
+                <div class="flex flex-col items-end gap-1 text-right">
                   <ToggleSwitch v-model="localConfig.viewer.use_glx" />
                   <p class="text-xs leading-relaxed text-amber-700 dark:text-amber-300">
                     {{ t('settings.serviceRestartInline') }}
@@ -1323,7 +1323,7 @@ function setBackgroundColor(event: Event) {
                 </div>
               </FieldRow>
               <FieldRow :label="formatLabel('use_sdl2')" :help="sectionHelp('viewer', 'use_sdl2')">
-                <div class="space-y-2">
+                <div class="flex flex-col items-end gap-1 text-right">
                   <ToggleSwitch v-model="localConfig.viewer.use_sdl2" />
                   <p class="text-xs leading-relaxed text-amber-700 dark:text-amber-300">
                     {{ t('settings.serviceRestartInline') }}
@@ -1348,10 +1348,10 @@ function setBackgroundColor(event: Event) {
               :description="t('settings.domain.mediaRootsDescription')"
               default-open
             >
-              <FieldRow :label="formatLabel('pic_dir')" :help="sectionHelp('model', 'pic_dir')">
+              <FieldRow wide :label="formatLabel('pic_dir')" :help="sectionHelp('model', 'pic_dir')">
                 <PathPicker v-model="localConfig.model.pic_dir" kind="directory" allow-missing />
               </FieldRow>
-              <FieldRow
+              <FieldRow wide
                 :label="formatLabel('deleted_pictures')"
                 :help="sectionHelp('model', 'deleted_pictures')"
               >
@@ -1361,7 +1361,7 @@ function setBackgroundColor(event: Event) {
                   allow-missing
                 />
               </FieldRow>
-              <FieldRow
+              <FieldRow wide
                 :label="formatLabel('no_files_img')"
                 :help="sectionHelp('model', 'no_files_img')"
               >
@@ -1411,10 +1411,10 @@ function setBackgroundColor(event: Event) {
               >
                 <NumberField v-model="localConfig.model.sample_limit" :min="0" :step="1" />
               </FieldRow>
-              <FieldRow :label="formatLabel('sort_cols')" :help="sectionHelp('model', 'sort_cols')">
+              <FieldRow wide :label="formatLabel('sort_cols')" :help="sectionHelp('model', 'sort_cols')">
                 <SortRulesEditor v-model="localConfig.model.sort_cols" :columns="sortColumns" />
               </FieldRow>
-              <FieldRow
+              <FieldRow wide
                 :label="formatLabel('image_extensions')"
                 :help="sectionHelp('model', 'image_extensions')"
               >
@@ -1423,7 +1423,7 @@ function setBackgroundColor(event: Event) {
                   :choices="imageExtensionChoices"
                 />
               </FieldRow>
-              <FieldRow
+              <FieldRow wide
                 :label="formatLabel('video_extensions')"
                 :help="sectionHelp('model', 'video_extensions')"
               >
@@ -1462,7 +1462,7 @@ function setBackgroundColor(event: Event) {
                   class="block w-full rounded-lg border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                 />
               </FieldRow>
-              <FieldRow
+              <FieldRow wide
                 :label="t('settings.geocoding.locationFormat')"
                 :help="sectionHelp('model', 'key_list')"
               >
@@ -1471,7 +1471,7 @@ function setBackgroundColor(event: Event) {
                   :choices="geocodeKeyChoices"
                 />
               </FieldRow>
-              <FieldRow
+              <FieldRow wide
                 v-if="localConfig.viewer"
                 :label="formatLabel('geo_suppress_list')"
                 :help="sectionHelp('viewer', 'geo_suppress_list')"
@@ -1498,7 +1498,7 @@ function setBackgroundColor(event: Event) {
                   </option>
                 </select>
               </FieldRow>
-              <FieldRow :label="formatLabel('log_file')" :help="sectionHelp('model', 'log_file')">
+              <FieldRow wide :label="formatLabel('log_file')" :help="sectionHelp('model', 'log_file')">
                 <PathPicker v-model="localConfig.model.log_file" kind="file" allow-missing />
               </FieldRow>
             </SettingsSection>
@@ -1542,7 +1542,7 @@ function setBackgroundColor(event: Event) {
               <FieldRow :label="formatLabel('password')" :help="sectionHelp('mqtt', 'password')">
                 <PasswordField v-model="localConfig.mqtt.password" />
               </FieldRow>
-              <FieldRow :label="formatLabel('tls')" :help="sectionHelp('mqtt', 'tls')">
+              <FieldRow wide :label="formatLabel('tls')" :help="sectionHelp('mqtt', 'tls')">
                 <PathPicker
                   v-model="localConfig.mqtt.tls"
                   kind="file"
@@ -1643,7 +1643,7 @@ function setBackgroundColor(event: Event) {
               :title="t('settings.domain.httpBrowserApi')"
               :description="t('settings.domain.httpBrowserApiDescription')"
             >
-              <FieldRow
+              <FieldRow wide
                 :label="formatLabel('cors_allowed_origins')"
                 :help="sectionHelp('http', 'cors_allowed_origins')"
               >

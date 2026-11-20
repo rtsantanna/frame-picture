@@ -231,6 +231,8 @@ class RendererConfig:
     text_x_margin: int = 100
     text_y_margin: int = 0
     geo_suppress_list: list[str] = field(default_factory=list)
+    # HDMI HUD layout (see picframe.core.services.hud_config). Empty = defaults.
+    hud: dict[str, Any] = field(default_factory=dict)
 
     # Animation settings
     time_fade: float = 2.0

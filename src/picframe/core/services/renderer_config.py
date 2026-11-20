@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from picframe.core.events.dto import RendererConfig
+from picframe.core.services.hud_config import load_hud
 from picframe.core.services.resource_paths import (
     PICFRAME_DATA_TOKEN,
     ResourcePaths,
@@ -87,6 +88,7 @@ def build_renderer_config(
         geo_suppress_list=_string_list(
             config_repository.get_app_config("viewer.geo_suppress_list", [])
         ),
+        hud=load_hud(config_repository),
         time_fade=float(config_repository.get_app_config("model.fade_time", 2.0)),
         time_delay=float(config_repository.get_app_config("model.time_delay", 200.0)),
         show_text_tm=float(config_repository.get_app_config("viewer.show_text_tm", 10.0)),

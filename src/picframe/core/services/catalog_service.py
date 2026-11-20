@@ -47,6 +47,8 @@ _ORIENTATION = {
 _STOPWORDS = {"file", "image", "photo", "picture", "img", "dsc", "dscn", "sam",
               "vid", "mov", "pict", "gopr", "dji", "untitled", "copy"}
 _CAMERA_CODE = re.compile(r"^(IMG|DSC|DSCN|SAM|P|PICT|VID|MOV|GOPR|DJI|MVI)[ _-]?\d*$", re.I)
+# WhatsApp copies: IMG-20190512-WA0003, VID-20190512-WA0001 ... (no place in the name).
+_WHATSAPP = re.compile(r"^(IMG|VID|AUD|PTT|STK|DOC)-\d{8}-WA\d*$", re.I)
 _LEADING_DATE = re.compile(
     r"^\s*\d{4}[-_]?\d{2}[-_]?\d{2}([ _-]?\d{2}[:_-]?\d{2}([:_-]?\d{2})?)?\s*[-_ ]*"
 )
@@ -61,7 +63,7 @@ def suggest_from_filename(name: str) -> tuple[str | None, str, str]:
     suggestion rather than a misleading one.
     """
     base = os.path.splitext(name)[0]
-    if _CAMERA_CODE.match(base):
+    if _CAMERA_CODE.match(base) or _WHATSAPP.match(base):
         return None, "none", "low"
     base = _LEADING_DATE.sub("", base)
     base = _TRAILING_SEQ.sub("", base)
@@ -365,6 +367,14 @@ class CatalogService:
             self._repo.add_event(rel_path, "suggestion_changed", "suggestion",
                                  before.get("suggestion"), fields.get("suggestion"),
                                  origin, batch_id)
+        if "date_override" in fields and (before.get("date_override") or None) != (
+            fields["date_override"] or None
+        ):
+            ev = "date_reset" if not fields["date_override"] else "date_changed"
+            self._repo.add_event(rel_path, ev, "date_override",
+                                 before.get("date_override") or before.get("capture_date"),
+                                 fields["date_override"] or before.get("capture_date"),
+                                 origin, batch_id)
         if "manual_rotation" in fields and before.get("manual_rotation") != fields["manual_rotation"]:
             new = int(fields["manual_rotation"] or 0)
             ev = "rotation_reset" if new == 0 else "rotation_changed"
@@ -532,5 +542,88 @@ class CatalogService:
             return row["suggestion"] or None
         return None
 
+    def _row_for(self, abs_path: str) -> dict[str, Any] | None:
+        try:
+            rel = os.path.relpath(abs_path, self.pic_dir())
+        except ValueError:
+            return None
+        return self._repo.get(rel)
+
+    def date_for(self, abs_path: str) -> float | None:
+        """Epoch of the date to show for a media file: the edited date when the
+        operator corrected it, else the capture date from the metadata."""
+        row = self._row_for(abs_path)
+        if not row:
+            return None
+        return parse_catalog_date(row.get("date_override") or row.get("capture_date"))
+
+    def location_for(self, abs_path: str) -> str | None:
+        """GPS place of a media file from the geocode cache (never hits the
+        network here; the cache is filled by scans with geocoding enabled)."""
+        row = self._row_for(abs_path)
+        if not row or row.get("gps_lat") is None or row.get("gps_lon") is None:
+            return None
+        try:
+            place = self._repo.get_geocode(float(row["gps_lat"]), float(row["gps_lon"]))
+        except (TypeError, ValueError):
+            return None
+        if place:
+            return place
+        if row.get("suggestion_source") == "gps" and row.get("suggestion"):
+            return row["suggestion"]
+        return None
+
+    def set_date(self, rel_path: str, value: str | None, origin: str = "manual") -> dict[str, Any] | None:
+        """Set (or clear, with an empty value) the corrected date of one entry."""
+        if self._repo.get(rel_path) is None:
+            return None
+        normalized = normalize_catalog_date(value) if value else ""
+        if value and not normalized:
+            raise ValueError(f"Invalid date: {value!r}")
+        self.update(rel_path, {"date_override": normalized or None}, origin=origin)
+        return self._repo.get(rel_path)
+
     def thumbnail_abspath(self, rel_path: str) -> str:
         return os.path.join(self.pic_dir(), rel_path)
+
+
+_DATE_RE = re.compile(
+    r"^\s*(\d{4})[-:/](\d{1,2})[-:/](\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?"
+)
+
+
+def normalize_catalog_date(value: Any) -> str:
+    """'2019-05-12' / '2019:05:12 08:30' / '2019-05-12T08:30:00' -> '2019:05:12 08:30:00'.
+
+    A date without time gets 12:00:00 so a timezone shift never moves it to
+    another day. Returns '' when the value is not a valid date.
+    """
+    import datetime as _dt
+
+    match = _DATE_RE.match(str(value or ""))
+    if not match:
+        return ""
+    year, month, day = (int(match.group(i)) for i in (1, 2, 3))
+    hour = int(match.group(4)) if match.group(4) else 12
+    minute = int(match.group(5)) if match.group(5) else 0
+    second = int(match.group(6)) if match.group(6) else 0
+    try:
+        dt = _dt.datetime(year, month, day, hour, minute, second)
+    except ValueError:
+        return ""
+    if not 1900 <= dt.year <= 2100:
+        return ""
+    return dt.strftime("%Y:%m:%d %H:%M:%S")
+
+
+def parse_catalog_date(value: Any) -> float | None:
+    """Catalog date string -> local epoch seconds (None when unparseable)."""
+    import datetime as _dt
+
+    normalized = normalize_catalog_date(value)
+    if not normalized:
+        return None
+    try:
+        return _dt.datetime.strptime(normalized, "%Y:%m:%d %H:%M:%S").timestamp()
+    except (ValueError, OverflowError, OSError):
+        return None

@@ -1827,8 +1827,19 @@ def create_app(
             fields["status"] = payload.status
         if payload.visible is not None:
             fields["visible"] = 1 if payload.visible else 0
+        if payload.date_override is not None:
+            try:
+                if svc.set_date(rel_path, payload.date_override) is None:
+                    raise HTTPException(status_code=404, detail="Catalog entry not found")
+            except ValueError as exc:
+                raise HTTPException(status_code=422, detail=str(exc)) from exc
+            _refresh_renderer_overlay()
+            if not fields:
+                return svc.get(rel_path)
         if not svc.update(rel_path, fields):
             raise HTTPException(status_code=404, detail="Catalog entry not found")
+        if "approved_description" in fields or "status" in fields:
+            _refresh_renderer_overlay()
         return svc.get(rel_path)
 
     @app.post("/api/catalog/rotate", tags=["Catalog"], summary="Rotate one catalog entry")
@@ -2160,11 +2171,27 @@ def create_app(
 
     # -- HDMI overlay appearance (per element) — Missao 06 item 1 ----------
 
+    def _refresh_renderer_overlay() -> None:
+        """Rebuild the renderer config and publish it so the HDMI updates live."""
+        if event_publisher is None or resource_paths is None or config_repository is None:
+            return
+        try:
+            from picframe.core.events.dto import RendererConfigUpdatedEvent
+            from picframe.core.services.renderer_config import build_renderer_config
+
+            cfg = build_renderer_config(config_repository, resource_paths)
+            event_publisher.publish(RendererConfigUpdatedEvent(config=cfg))
+        except Exception as exc:  # pragma: no cover
+            logger.warning("Could not refresh the HDMI overlay: %s", exc)
+
     def _overlay_appearance_state() -> dict[str, Any]:
         if config_repository is None:
             return {}
+        from picframe.core.services.hud_config import load_hud
+
         fmt = str(config_repository.get_app_config("viewer.text_overlay_format", "description date"))
         return {
+            "hud": load_hud(config_repository),
             "clock_enabled": config_repository.get_app_config_bool("viewer.show_clock", True),
             "clock_color": config_repository.get_app_config("viewer.clock_color", "#f8fafc"),
             "clock_size": int(config_repository.get_app_config("viewer.clock_text_sz", 120)),
@@ -2224,17 +2251,44 @@ def create_app(
             parts = (["description"] if desc_on else []) + (["date"] if date_on else [])
             config_repository.set_app_config("viewer.text_overlay_format", " ".join(parts))
             config_repository.set_app_config("viewer.show_text_enabled", bool(parts))
-        # Apply live: rebuild the renderer config and publish it to the renderer.
-        if event_publisher is not None and resource_paths is not None:
-            try:
-                from picframe.core.events.dto import RendererConfigUpdatedEvent
-                from picframe.core.services.renderer_config import build_renderer_config
+        if p.hud is not None:
+            from picframe.core.services.hud_config import save_hud
 
-                cfg = build_renderer_config(config_repository, resource_paths)
-                event_publisher.publish(RendererConfigUpdatedEvent(config=cfg))
-            except Exception as exc:  # pragma: no cover
-                logger.warning("Could not apply overlay appearance live: %s", exc)
+            hud = save_hud(config_repository, p.hud)
+            weather = hud.get("weather") or {}
+            if hud["elements"]["weather"]["enabled"]:
+                from picframe.core.services.weather_service import WeatherService
+
+                WeatherService.instance().set_location(weather.get("lat"), weather.get("lon"))
+        # Apply live: rebuild the renderer config and publish it to the renderer.
+        _refresh_renderer_overlay()
         return _overlay_appearance_state()
+
+    @app.get("/api/weather/search", tags=["Overlay"], summary="Search a place for the weather")
+    async def api_weather_search(q: str = Query(..., min_length=2, max_length=80)) -> dict[str, Any]:
+        from picframe.core.services.weather_service import WeatherService
+
+        try:
+            results = await asyncio.to_thread(WeatherService.search_places, q)
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"Busca indisponível: {exc}") from exc
+        return {"results": results}
+
+    @app.get("/api/weather/current", tags=["Overlay"], summary="Weather reading used by the HDMI")
+    async def api_weather_current(refresh: bool = False) -> dict[str, Any]:
+        from picframe.core.services.hud_config import load_hud
+        from picframe.core.services.weather_service import WeatherService
+
+        if config_repository is None:
+            raise HTTPException(status_code=503, detail="Config repository unavailable")
+        weather = load_hud(config_repository).get("weather") or {}
+        svc = WeatherService.instance()
+        svc.set_location(weather.get("lat"), weather.get("lon"))
+        data = svc.current()
+        if (data is None or refresh) and weather.get("lat") is not None:
+            data = await asyncio.to_thread(svc.refresh_now)
+        status = svc.status()
+        return {"place": weather.get("place", ""), "data": data, "error": status.get("error")}
 
     @app.get(
         "/api/system/locales",
@@ -3145,9 +3199,14 @@ def create_app(
         @app.get("/{full_path:path}", include_in_schema=False)
         async def serve_spa(full_path: str) -> FileResponse:
             requested_file = html_dir_path / full_path
-            if full_path and requested_file.is_file():
+            if full_path and requested_file.is_file() and requested_file.suffix != ".html":
                 return FileResponse(requested_file)
-            return FileResponse(html_dir_path / "index.html")
+            page = requested_file if requested_file.suffix == ".html" and requested_file.is_file() \
+                else html_dir_path / "index.html"
+            # The HTML entry points name the hashed bundles; never let a browser
+            # keep an old one, or it keeps loading the previous panel after an
+            # update. The hashed /assets files themselves stay cacheable.
+            return FileResponse(page, headers={"Cache-Control": "no-cache"})
     else:
         logger.warning(
             f"Frontend build directory not found at {html_dir_path}. Web UI will not be available."

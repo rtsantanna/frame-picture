@@ -529,7 +529,7 @@ onBeforeUnmount(stopCapture)
         :label="t('settings.touchOverlay.enable.label')"
         :help="t('settings.touchOverlay.enable.help')"
       >
-        <div class="space-y-2">
+        <div class="flex flex-col items-end gap-1 text-right">
           <ToggleSwitch v-model="enabled" />
           <p class="text-xs leading-relaxed text-amber-700 dark:text-amber-300">
             {{ t('settings.touchOverlay.restartRequired') }}
@@ -559,6 +559,7 @@ onBeforeUnmount(stopCapture)
       </FieldRow>
 
       <FieldRow
+        wide
         :label="t('settings.touchOverlay.keys.label')"
         :help="t('settings.touchOverlay.keys.help')"
       >
@@ -704,6 +705,7 @@ onBeforeUnmount(stopCapture)
       </FieldRow>
 
       <FieldRow
+        wide
         :label="t('settings.touchOverlay.dockLayout.label')"
         :help="t('settings.touchOverlay.dockLayout.help')"
       >

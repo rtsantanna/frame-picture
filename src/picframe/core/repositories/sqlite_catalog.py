@@ -118,7 +118,19 @@ CATALOG_MIGRATIONS = [
         ALTER TABLE catalog ADD COLUMN manual_rotation INTEGER NOT NULL DEFAULT 0;
         """,
     ),
+    # Human-corrected capture date ("YYYY:MM:DD HH:MM:SS"), e.g. for WhatsApp
+    # copies whose metadata only carries the download date. Never touched by a
+    # rescan (not in _SCAN_COLUMNS).
+    Migration(
+        version=5,
+        up_script="""
+        ALTER TABLE catalog ADD COLUMN date_override TEXT;
+        """,
+    ),
 ]
+
+# Date shown/sorted everywhere: the human correction wins over the metadata.
+_EFFECTIVE_DATE = "COALESCE(NULLIF(date_override, ''), capture_date)"
 
 # Named filters -> SQL WHERE fragment (no user input interpolated).
 _FILTERS: dict[str, str] = {
@@ -135,14 +147,15 @@ _FILTERS: dict[str, str] = {
     "no_gps": "gps_lat IS NULL OR gps_lon IS NULL",
     "photos": "media_type = 'photo'",
     "videos": "media_type = 'video'",
-    "with_date": "capture_date IS NOT NULL AND capture_date != ''",
-    "no_date": "capture_date IS NULL OR capture_date = ''",
+    "with_date": f"{_EFFECTIVE_DATE} IS NOT NULL AND {_EFFECTIVE_DATE} != ''",
+    "no_date": f"{_EFFECTIVE_DATE} IS NULL OR {_EFFECTIVE_DATE} = ''",
     "edited": "edited_manually = 1",
+    "date_edited": "date_override IS NOT NULL AND date_override != ''",
 }
 
 _SORTS: dict[str, str] = {
-    "date_desc": "capture_date DESC",
-    "date_asc": "capture_date ASC",
+    "date_desc": f"{_EFFECTIVE_DATE} DESC",
+    "date_asc": f"{_EFFECTIVE_DATE} ASC",
     "name_asc": "filename COLLATE NOCASE ASC",
     "name_desc": "filename COLLATE NOCASE DESC",
     "status": "status ASC, filename COLLATE NOCASE ASC",
@@ -229,7 +242,7 @@ class SQLiteCatalogRepository:
             like = f"%{search}%"
             params += [like, like, like]
         if year is not None:
-            where.append("substr(capture_date,1,4) = ?")
+            where.append(f"substr({_EFFECTIVE_DATE},1,4) = ?")
             params.append(str(year))
         where_sql = " AND ".join(where) if where else "1=1"
         order = _SORTS.get(sort, _SORTS["date_desc"])
@@ -282,6 +295,7 @@ class SQLiteCatalogRepository:
             "suggestion_source",
             "suggestion_confidence",
             "manual_rotation",
+            "date_override",
         }
         sets = {k: v for k, v in fields.items() if k in allowed}
         if not sets:

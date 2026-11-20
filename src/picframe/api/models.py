@@ -703,6 +703,8 @@ class CatalogUpdateRequest(BaseModel):
     approved_description: str | None = None
     status: CatalogStatus | None = None
     visible: bool | None = None
+    # Corrected capture date: "YYYY-MM-DD" (optionally " HH:MM[:SS]"); "" clears it.
+    date_override: str | None = Field(default=None, max_length=40)
 
 
 class CatalogRotateRequest(BaseModel):
@@ -794,3 +796,6 @@ class OverlayAppearanceRequest(BaseModel):
     # Video presentation sizing (Missao 06 updated — item 1)
     video_scaling: str | None = None
     video_margin_pct: float | None = Field(default=None, ge=0.0, le=45.0)
+    # HDMI HUD layout patch (style / elements / formats / weather); merged and
+    # validated by picframe.core.services.hud_config.normalize_hud.
+    hud: dict[str, Any] | None = None

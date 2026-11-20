@@ -8,6 +8,7 @@ import queue
 import signal
 import time
 from dataclasses import dataclass, field, replace
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -32,11 +33,11 @@ from picframe.core.events.dto import (
 from picframe.core.events.interfaces import IEventPublisher, IEventSubscriber
 from picframe.core.models.media import DisplayItem, DisplayLayout
 from picframe.core.renderers.animation_controller import AnimationController, RenderState
-from picframe.core.renderers.components.clock_renderer import ClockRenderer
+from picframe.core.renderers.components.hud_renderer import HudRenderer
 from picframe.core.renderers.components.image_renderer import ImageRenderer
 from picframe.core.renderers.components.text_renderer import TextRenderer
 from picframe.core.renderers.interfaces import IRenderer
-from picframe.core.services.locale_utils import format_datetime_for_locale
+from picframe.core.services.hud_config import PHOTO_ELEMENTS, default_hud, format_dt
 from picframe.core.services.overlay_text import apply_geo_suppress_list
 
 PI3D_LABWC_IDENTIFIER = "picframe-pi3d"
@@ -161,7 +162,8 @@ class Pi3dRenderer(IRenderer):
         # Text Overlay State
         self._overlay_config = self._build_overlay_config(text_string="")
         self._text_renderer: TextRenderer | None = None
-        self._clock_renderer: ClockRenderer | None = None
+        self._hud_renderer: HudRenderer | None = None
+        self._hud_paths: tuple[str, ...] = ()
 
         self._animation_controller = AnimationController(self._animation_config())
         self._animation_controller.update_text_config(self._overlay_config.show_text, False)
@@ -179,72 +181,110 @@ class Pi3dRenderer(IRenderer):
             "kenburns": self._config.kenburns,
         }
 
-    def _generate_text_string(self, media_item: Any) -> str:
-        """Generate the text overlay string based on configuration and media metadata."""
-        if isinstance(media_item, DisplayItem):
-            media_item = media_item.primary
-        if not media_item or getattr(media_item, "filepath", "").endswith("no_pictures.jpg"):
-            return ""
+    # -- HUD photo fields ------------------------------------------------------
 
-        if not self._config.show_text_enabled:
-            return ""
+    def _hud(self) -> dict[str, Any]:
+        return getattr(self._config, "hud", None) or default_hud()
 
-        show_text_config = self._config.text_overlay_format.lower()
-        show_text_fm = self._config.show_text_fm
+    @staticmethod
+    def _media_paths(media_item: Any) -> tuple[str, ...]:
+        items = media_item.items if isinstance(media_item, DisplayItem) else [media_item]
+        return tuple(
+            str(getattr(item, "filepath", "") or "")
+            for item in items
+            if item is not None and getattr(item, "filepath", "")
+        )
 
-        parts = []
-        # Catalogo de Memorias: approved description (never the filename, never
-        # "Dado nao encontrado"). description_for() returns None unless approved
-        # (or unapproved suggestions were explicitly enabled for the HDMI).
-        if "description" in show_text_config and self._catalog_service is not None:
-            filepath = getattr(media_item, "filepath", None)
-            if filepath:
-                try:
-                    desc = self._catalog_service.description_for(filepath)
-                except Exception:
-                    desc = None
-                if desc:
-                    parts.append(desc)
-        if "title" in show_text_config and getattr(media_item, "title", None):
-            parts.append(media_item.title)
-        if "caption" in show_text_config and getattr(media_item, "caption", None):
-            parts.append(media_item.caption)
-        if "name" in show_text_config and getattr(media_item, "filename", None):
-            parts.append(media_item.filename)
-        if "date" in show_text_config and getattr(media_item, "exif_datetime", None):
-            import datetime
+    def _media_for_path(self, path: str) -> Any:
+        media = self._current_media
+        items = media.items if isinstance(media, DisplayItem) else [media]
+        for item in items:
+            if item is not None and getattr(item, "filepath", None) == path:
+                return item
+        return None
 
+    def _photo_fields_for_path(self, path: str) -> dict[str, str]:
+        """Description / location / photo date for one media file.
+
+        The catalog is the source of truth (approved description, the edited
+        date, the GPS place); the picframe media record is the fallback.
+        """
+        if not path or path.endswith("no_pictures.jpg"):
+            return {}
+        hud = self._hud()
+        els = hud["elements"]
+        catalog = self._catalog_service
+        media = self._media_for_path(path)
+        fields: dict[str, str] = {}
+
+        def ask(method: str) -> Any:
+            fn = getattr(catalog, method, None) if catalog is not None else None
+            if not callable(fn):
+                return None
             try:
-                dt = datetime.datetime.fromtimestamp(media_item.exif_datetime)
-                parts.append(
-                    format_datetime_for_locale(
-                        dt,
-                        show_text_fm,
-                        self._config.model_locale,
-                    )
-                )
-            except Exception:
-                pass
-        if "folder" in show_text_config and getattr(media_item, "filepath", None):
-            parts.append(os.path.basename(os.path.dirname(media_item.filepath)))
-        if "location" in show_text_config and getattr(media_item, "location", None):
-            location = apply_geo_suppress_list(
-                media_item.location,
-                self._config.geo_suppress_list,
-            )
-            if location:
-                parts.append(location)
+                return fn(path)
+            except Exception as exc:
+                self._logger.debug("HUD: %s(%s) failed: %s", method, path, exc)
+                return None
 
-        # Missao 04: "Descricao | dd/MM/yyyy"; empty parts already dropped, so
-        # the separator never shows for a missing field.
-        return " | ".join(parts)
+        if els["description"]["enabled"]:
+            desc = ask("description_for")
+            if desc:
+                fields["description"] = str(desc)
+        if els["location"]["enabled"]:
+            place = ask("location_for") or (getattr(media, "location", None) if media else None)
+            if place:
+                place = apply_geo_suppress_list(str(place), self._config.geo_suppress_list)
+            if place:
+                fields["location"] = place
+        if els["photo_date"]["enabled"]:
+            ts = ask("date_for")
+            if ts is None and media is not None:
+                ts = getattr(media, "exif_datetime", None)
+            if ts:
+                try:
+                    dt = datetime.fromtimestamp(float(ts))
+                    fields["photo_date"] = format_dt(
+                        dt, hud["formats"]["photo_date"], hud.get("lang", "pt")
+                    )
+                except (TypeError, ValueError, OSError, OverflowError):
+                    pass
+        return fields
+
+    def _photo_fields(self, paths: tuple[str, ...]) -> dict[str, str]:
+        """Fields for the shown item; a portrait pair joins both photos' values."""
+        per_photo = [self._photo_fields_for_path(path) for path in paths]
+        if len(per_photo) <= 1:
+            return per_photo[0] if per_photo else {}
+        merged: dict[str, str] = {}
+        for key in PHOTO_ELEMENTS:
+            values = [fields.get(key, "") for fields in per_photo]
+            if any(values):
+                merged[key] = "  /  ".join(value or "—" for value in values)
+        return merged
+
+    def _generate_text_string(self, media_item: Any) -> str:
+        """Joined photo fields; drives the text fade animation (not drawn as-is)."""
+        fields = self._photo_fields(self._media_paths(media_item))
+        return " | ".join(fields[key] for key in PHOTO_ELEMENTS if fields.get(key))
 
     def _generate_text_strings(self, media_item: Any) -> tuple[str, ...]:
-        """Generate one or two text overlay strings for the current display item."""
-        if isinstance(media_item, DisplayItem) and media_item.layout == DisplayLayout.PORTRAIT_PAIR:
-            return tuple(self._generate_text_string(item) for item in media_item.items)
         text = self._generate_text_string(media_item)
         return (text,) if text else ()
+
+    def _push_overlay_to_components(self) -> None:
+        """Send the current overlay state to the status text and the HUD."""
+        if self._text_renderer:
+            # The text renderer now only shows status messages (e.g. paused);
+            # photo texts are drawn by the HUD.
+            self._text_renderer.update_config(
+                replace(self._overlay_config, show_text=False, text_string="", text_strings=())
+            )
+        if self._hud_renderer:
+            self._hud_renderer.set_hud(self._hud())
+            self._hud_renderer.set_photo_fields(
+                self._photo_fields(self._hud_paths), bool(self._overlay_config.show_text)
+            )
 
     def _handle_config_event(self, event: Any) -> None:
         if not isinstance(event, RendererConfigUpdatedEvent):
@@ -295,10 +335,7 @@ class Pi3dRenderer(IRenderer):
             text_strings=new_text_strings if len(new_text_strings) == 2 else (),
         )
 
-        if self._text_renderer:
-            self._text_renderer.update_config(self._overlay_config)
-        if self._clock_renderer:
-            self._clock_renderer.update_config(self._overlay_config)
+        self._push_overlay_to_components()
 
         self._animation_controller.force_redraw(2)
         self._animation_controller.update_text_config(
@@ -317,9 +354,12 @@ class Pi3dRenderer(IRenderer):
     def _handle_state_event(self, event: Any) -> None:
         if isinstance(event, CurrentMediaChangedEvent):
             self._current_media = event.media_item
+            paths = self._media_paths(self._current_media)
+            if paths:
+                self._hud_paths = paths
 
             # Update text string when media changes
-            if self._config.show_text_enabled:
+            if self._config.show_text_enabled or self._hud_renderer is not None:
                 new_text_strings = self._generate_text_strings(self._current_media)
                 new_text_string = new_text_strings[0] if new_text_strings else ""
                 new_overlay_text_strings = new_text_strings if len(new_text_strings) == 2 else ()
@@ -335,8 +375,7 @@ class Pi3dRenderer(IRenderer):
                         text_strings=new_overlay_text_strings,
                         show_text=self._overlay_config.show_text,
                     )
-                    if self._text_renderer:
-                        self._text_renderer.update_config(self._overlay_config)
+                    self._push_overlay_to_components()
                     self._animation_controller.force_redraw(2)
                     self._animation_controller.update_text_config(
                         self._overlay_has_visible_text(),
@@ -679,10 +718,11 @@ class Pi3dRenderer(IRenderer):
             font_file,
             render_rect=self._render_rect,
         )
-        self._clock_renderer = ClockRenderer(
+        self._hud_renderer = HudRenderer(
             self._display,
             flat_shader,
-            font_file,
+            fonts_dir=os.path.dirname(font_file),
+            fallback_font=font_file,
             render_rect=self._render_rect,
         )
 
@@ -694,7 +734,7 @@ class Pi3dRenderer(IRenderer):
             self._display = None
         self._image_renderer = None
         self._text_renderer = None
-        self._clock_renderer = None
+        self._hud_renderer = None
         self._render_rect = None
         self._pending_component_rebuild = False
         self._reset_pi3d_singletons()
@@ -759,15 +799,12 @@ class Pi3dRenderer(IRenderer):
         self._render_rect = self._render_rect_for_config(self._config)
         self._image_renderer = None
         self._text_renderer = None
-        self._clock_renderer = None
+        self._hud_renderer = None
         self._sync_overlay_config_for_current_media()
         self._reset_pi3d_camera_singletons()
         self._reset_start_runtime_state()
         self._create_render_components()
-        if self._text_renderer:
-            self._text_renderer.update_config(self._overlay_config)
-        if self._clock_renderer:
-            self._clock_renderer.update_config(self._overlay_config)
+        self._push_overlay_to_components()
         self._pending_component_rebuild = False
 
     def _reset_pi3d_singletons(self) -> None:
@@ -812,6 +849,8 @@ class Pi3dRenderer(IRenderer):
             return True
         if not self._overlay_config.show_text:
             return False
+        if self._hud_renderer is not None:
+            return self._hud_renderer.has_photo_text()
         if self._overlay_config.text_string:
             return True
         return any(self._overlay_config.text_strings)
@@ -900,10 +939,7 @@ class Pi3dRenderer(IRenderer):
                 self._animation_controller.pause(
                     force_text_visible=bool(self._overlay_config.status_text)
                 )
-                if self._text_renderer:
-                    self._text_renderer.update_config(self._overlay_config)
-                if self._clock_renderer:
-                    self._clock_renderer.update_config(self._overlay_config)
+                self._push_overlay_to_components()
                 self._animation_controller.force_redraw(RESUME_REDRAW_FRAMES)
                 return
             elif command.render_action == RENDER_RESUME_PLAYBACK:
@@ -912,21 +948,15 @@ class Pi3dRenderer(IRenderer):
                     False,
                 )
                 self._animation_controller.resume_pause()
-                if self._text_renderer:
-                    self._text_renderer.update_config(self._overlay_config)
-                if self._clock_renderer:
-                    self._clock_renderer.update_config(self._overlay_config)
+                self._push_overlay_to_components()
                 self._animation_controller.force_redraw(RESUME_REDRAW_FRAMES)
                 return
             elif command.render_action == RENDER_UPDATE_OVERLAY:
+                self._push_overlay_to_components()
                 self._animation_controller.update_text_config(
                     self._overlay_has_visible_text(),
                     True,
                 )
-                if self._text_renderer:
-                    self._text_renderer.update_config(self._overlay_config)
-                if self._clock_renderer:
-                    self._clock_renderer.update_config(self._overlay_config)
                 self._animation_controller.force_redraw(RESUME_REDRAW_FRAMES)
                 return
 
@@ -952,17 +982,16 @@ class Pi3dRenderer(IRenderer):
                 else:
                     self._video_first_frame_transition = is_video_first_frame
                     self._transition_token = command.transition_token
+                    paths = tuple(p for p in (command.image_paths or (command.image_path,)) if p)
+                    if paths:
+                        self._hud_paths = paths
+                    self._push_overlay_to_components()
                     self._animation_controller.start_transition(time.time(), kb_xstep, kb_ystep)
                     self._was_transitioning = True
                     self._animation_controller.update_text_config(
                         self._overlay_has_visible_text(),
                         True,
                     )
-
-                    if self._text_renderer:
-                        self._text_renderer.update_config(self._overlay_config)
-                    if self._clock_renderer:
-                        self._clock_renderer.update_config(self._overlay_config)
             else:
                 self._video_first_frame_transition = False
                 self._transition_token = None
@@ -1035,10 +1064,9 @@ class Pi3dRenderer(IRenderer):
         ):
             needs_redraw = True
 
-        # 2. Check dynamic overlays (Clock)
-        elif self._clock_renderer:
-            if self._clock_renderer.has_changed():
-                needs_redraw = True
+        # 2. Check dynamic overlays (clock / today's date / weather)
+        elif self._hud_renderer is not None and self._hud_renderer.has_changed():
+            needs_redraw = True
 
         # 3. OS Keepalive (prevent Wayland/X11 "Not Responding" hangs)
         elif (tm - getattr(self, "_last_redraw_time", 0)) > 10.0:
@@ -1080,12 +1108,12 @@ class Pi3dRenderer(IRenderer):
 
         if (
             self._text_renderer
-            and self._overlay_has_visible_text()
+            and self._overlay_config.status_text
             and anim_state.text_alpha > TEXT_VISIBLE_ALPHA_THRESHOLD
         ):
             self._text_renderer.draw()
 
-        if self._clock_renderer and self._overlay_config.show_clock:
-            self._clock_renderer.draw()
+        if self._hud_renderer is not None:
+            self._hud_renderer.draw(anim_state.text_alpha)
 
         return True

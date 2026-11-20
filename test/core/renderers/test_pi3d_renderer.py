@@ -74,8 +74,17 @@ def mock_text_renderer() -> Generator[MagicMock, None, None]:
 
 @pytest.fixture
 def mock_clock_renderer() -> Generator[MagicMock, None, None]:
-    with patch("picframe.core.renderers.pi3d_renderer.ClockRenderer") as mock:
+    with patch("picframe.core.renderers.pi3d_renderer.HudRenderer") as mock:
         yield mock.return_value
+
+
+def _catalog_with_description(description: str) -> MagicMock:
+    """Catalog stub: approved description only (no date, no GPS place)."""
+    catalog = MagicMock()
+    catalog.description_for.return_value = description
+    catalog.location_for.return_value = None
+    catalog.date_for.return_value = None
+    return catalog
 
 
 @pytest.fixture
@@ -137,17 +146,14 @@ def test_build_overlay_config_defaults_when_unset(config: RendererConfig) -> Non
     assert overlay.clock_extra_text == ""
 
 
-def test_renderer_formats_overlay_date_with_model_locale(config: RendererConfig) -> None:
-    """Renderer-side overlay generation uses the configured model locale."""
-    renderer = Pi3dRenderer(
-        replace(
-            config,
-            show_text_enabled=True,
-            text_overlay_format="date",
-            show_text_fm="%B %d, %Y",
-            model_locale="de_DE.utf8",
-        )
-    )
+def test_renderer_formats_overlay_date_with_hud_format(config: RendererConfig) -> None:
+    """The photo date uses the HUD format, with Portuguese month names."""
+    from picframe.core.services.hud_config import default_hud
+
+    hud = default_hud()
+    hud["elements"]["description"]["enabled"] = False
+    hud["formats"]["photo_date"] = "%d %B %Y"
+    renderer = Pi3dRenderer(replace(config, hud=hud))
     media_item = MediaItem(
         filepath="/path/to/image.jpg",
         filename="image.jpg",
@@ -155,19 +161,40 @@ def test_renderer_formats_overlay_date_with_model_locale(config: RendererConfig)
         media_type=MediaType.IMAGE,
         file_size=1024,
         last_modified=1.0,
+        exif_datetime=1_710_000_000.0,  # 2024-03-09 (local time)
+    )
+    renderer._current_media = media_item
+
+    assert renderer._generate_text_string(media_item) in {"09 março 2024", "10 março 2024"}
+
+
+def test_renderer_prefers_catalog_date_and_place(config: RendererConfig) -> None:
+    """Catalog (edited date, GPS place, approved description) wins over media data."""
+    from picframe.core.services.hud_config import default_hud
+
+    hud = default_hud()
+    hud["elements"]["location"]["enabled"] = True
+    catalog = MagicMock()
+    catalog.description_for.return_value = "Praia do Forte"
+    catalog.location_for.return_value = "Mata de São João, Bahia"
+    catalog.date_for.return_value = 1_262_347_200.0  # 2010-01-01 12:00 UTC
+    renderer = Pi3dRenderer(replace(config, hud=hud), catalog_service=catalog)
+    media_item = MediaItem(
+        filepath="/p/IMG-20240101-WA0001.jpg",
+        filename="IMG-20240101-WA0001.jpg",
+        directory_id=1,
+        media_type=MediaType.IMAGE,
+        file_size=1,
+        last_modified=1.0,
         exif_datetime=1_710_000_000.0,
     )
 
-    with patch(
-        "picframe.core.renderers.pi3d_renderer.format_datetime_for_locale",
-        return_value="März 09, 2024",
-    ) as format_datetime:
-        assert renderer._generate_text_string(media_item) == "März 09, 2024"
+    fields = renderer._photo_fields(("/p/IMG-20240101-WA0001.jpg",))
 
-    format_datetime.assert_called_once()
-    _, date_format, locale_value = format_datetime.call_args.args
-    assert date_format == "%B %d, %Y"
-    assert locale_value == "de_DE.utf8"
+    assert fields["description"] == "Praia do Forte"
+    assert fields["location"] == "Mata de São João, Bahia"
+    assert fields["photo_date"] == "01/01/2010"
+    assert renderer._generate_text_string(media_item).startswith("Praia do Forte | ")
 
 
 def test_renderer_start_stop(
@@ -186,7 +213,7 @@ def test_renderer_start_stop(
     assert renderer._display is not None
     assert renderer._image_renderer is not None
     assert renderer._text_renderer is not None
-    assert renderer._clock_renderer is not None
+    assert renderer._hud_renderer is not None
 
     # Stop
     display_mock = renderer._display
@@ -195,7 +222,7 @@ def test_renderer_start_stop(
     assert renderer._display is None
     assert renderer._image_renderer is None
     assert renderer._text_renderer is None
-    assert renderer._clock_renderer is None
+    assert renderer._hud_renderer is None
 
 
 def test_renderer_stop_clears_pi3d_singletons(
@@ -284,7 +311,7 @@ def test_renderer_uses_fullscreen_host_for_custom_geometry_without_labwc(
     with (
         patch("picframe.core.renderers.pi3d_renderer.ImageRenderer") as image_renderer,
         patch("picframe.core.renderers.pi3d_renderer.TextRenderer") as text_renderer,
-        patch("picframe.core.renderers.pi3d_renderer.ClockRenderer") as clock_renderer,
+        patch("picframe.core.renderers.pi3d_renderer.HudRenderer") as clock_renderer,
     ):
         renderer.start()
 
@@ -318,7 +345,7 @@ def test_renderer_keeps_configured_window_geometry_with_labwc(
     with (
         patch("picframe.core.renderers.pi3d_renderer.ImageRenderer") as image_renderer,
         patch("picframe.core.renderers.pi3d_renderer.TextRenderer") as text_renderer,
-        patch("picframe.core.renderers.pi3d_renderer.ClockRenderer") as clock_renderer,
+        patch("picframe.core.renderers.pi3d_renderer.HudRenderer") as clock_renderer,
     ):
         renderer.start()
 
@@ -737,12 +764,8 @@ def test_renderer_current_media_event_does_not_restart_same_single_overlay_text(
     mock_text_renderer: MagicMock,
     mock_clock_renderer: MagicMock,
 ) -> None:
-    text_config = replace(
-        config,
-        show_text_enabled=True,
-        text_overlay_format="name",
-    )
-    renderer = Pi3dRenderer(text_config)
+    text_config = replace(config, show_text_enabled=True)
+    renderer = Pi3dRenderer(text_config, catalog_service=_catalog_with_description("video.mp4"))
     renderer.start()
     renderer._overlay_config = renderer._build_overlay_config(text_string="video.mp4")
     renderer._animation_controller._state = RenderState.STATIC
@@ -783,12 +806,8 @@ def test_renderer_current_media_event_preserves_show_text_false_for_video(
     ``CurrentMediaChangedEvent`` must preserve that value instead of
     resetting it to ``show_text_enabled=True`` from the config.
     """
-    text_config = replace(
-        config,
-        show_text_enabled=True,
-        text_overlay_format="name",
-    )
-    renderer = Pi3dRenderer(text_config)
+    text_config = replace(config, show_text_enabled=True)
+    renderer = Pi3dRenderer(text_config, catalog_service=_catalog_with_description("clip.mp4"))
     renderer.start()
     # Simulate a video command that suppresses text overlay.
     renderer._overlay_config = OverlayConfig(
@@ -814,7 +833,11 @@ def test_renderer_current_media_event_preserves_show_text_false_for_video(
 
     assert renderer._overlay_config.show_text is False
     assert renderer._overlay_config.text_string == "clip.mp4"
-    mock_text_renderer.update_config.assert_called_once_with(renderer._overlay_config)
+    # The text renderer only carries status messages now; photo texts go to the HUD.
+    mock_text_renderer.update_config.assert_called_once_with(
+        replace(renderer._overlay_config, show_text=False, text_string="", text_strings=())
+    )
+    mock_clock_renderer.set_photo_fields.assert_called_with({"description": "clip.mp4"}, False)
 
 
 def test_renderer_resume_forces_redraw_frames(
@@ -1014,7 +1037,7 @@ def test_renderer_config_event_defers_component_updates_for_display_geometry(
     assert renderer._display_x == 100
     mock_image_renderer.update_config.assert_not_called()
     mock_text_renderer.update_config.assert_not_called()
-    mock_clock_renderer.update_config.assert_not_called()
+    mock_clock_renderer.set_hud.assert_not_called()
 
 
 def test_renderer_backend_flags_require_service_restart(
@@ -1036,7 +1059,7 @@ def test_renderer_backend_flags_require_service_restart(
     assert renderer._pending_component_rebuild is False
     mock_image_renderer.update_config.assert_not_called()
     mock_text_renderer.update_config.assert_not_called()
-    mock_clock_renderer.update_config.assert_not_called()
+    mock_clock_renderer.set_hud.assert_not_called()
 
 
 def test_renderer_mat_settings_do_not_require_service_restart(
@@ -1084,7 +1107,7 @@ def test_renderer_shader_and_font_changes_rebuild_components_without_restart(
     assert renderer._pending_component_rebuild is True
     mock_image_renderer.update_config.assert_not_called()
     mock_text_renderer.update_config.assert_not_called()
-    mock_clock_renderer.update_config.assert_not_called()
+    mock_clock_renderer.set_hud.assert_not_called()
 
 
 def test_renderer_wayland_fullscreen_host_geometry_changes_do_not_require_restart(
@@ -1160,7 +1183,7 @@ def test_renderer_config_event_marks_wayland_fullscreen_host_geometry_for_rebuil
     assert renderer._pending_component_rebuild is True
     mock_image_renderer.update_config.assert_not_called()
     mock_text_renderer.update_config.assert_not_called()
-    mock_clock_renderer.update_config.assert_not_called()
+    mock_clock_renderer.set_hud.assert_not_called()
 
 
 def test_renderer_execute_rebuilds_wayland_fullscreen_host_components_before_command(
@@ -1180,7 +1203,7 @@ def test_renderer_execute_rebuilds_wayland_fullscreen_host_components_before_com
     with (
         patch("picframe.core.renderers.pi3d_renderer.ImageRenderer") as image_renderer,
         patch("picframe.core.renderers.pi3d_renderer.TextRenderer"),
-        patch("picframe.core.renderers.pi3d_renderer.ClockRenderer"),
+        patch("picframe.core.renderers.pi3d_renderer.HudRenderer"),
     ):
         image_renderer.return_value.execute.return_value = (True, 0.0, 0.0)
         renderer.start()

@@ -7,7 +7,7 @@ const { t, locale } = useI18n()
 const store = useCatalogStore()
 
 const PRIMARY = ['all', 'pending', 'approved', 'auto_location', 'with_suggestion', 'no_info', 'review', 'hidden']
-const EXTRAS = ['with_gps', 'no_gps', 'photos', 'videos', 'visible', 'with_date', 'no_date', 'edited']
+const EXTRAS = ['with_gps', 'no_gps', 'photos', 'videos', 'visible', 'with_date', 'no_date', 'edited', 'date_edited']
 const SORTS = ['date_desc', 'date_asc', 'name_asc', 'name_desc', 'status']
 
 const primary = ref('all')
@@ -164,10 +164,40 @@ async function doScan() {
   }, 1500)
 }
 
-function fmtDate(d: string | null): string {
+function fmtDate(d: string | null | undefined): string {
   if (!d) return '—'
-  const m = /^(\d{4}):(\d{2}):(\d{2})/.exec(d)
+  const m = /^(\d{4})[:-](\d{2})[:-](\d{2})/.exec(d)
   return m ? `${m[3]}/${m[2]}/${m[1]}` : d
+}
+
+// --- data corrigida (ex.: fotos do WhatsApp com a data do download) ---
+const dateSaving = reactive<Set<string>>(new Set())
+function isoDate(d: string | null | undefined): string {
+  const m = /^(\d{4})[:-](\d{2})[:-](\d{2})/.exec(d || '')
+  return m ? `${m[1]}-${m[2]}-${m[3]}` : ''
+}
+function effectiveDate(it: CatalogItem): string | null {
+  return it.date_override || it.capture_date
+}
+/** Date embedded in the filename (IMG-20190512-WA0003.jpg, 2019-05-12 10.30.jpg...). */
+function filenameDate(name: string): string {
+  const m = /(?:^|\D)((?:19|20)\d{2})[-_.]?(0[1-9]|1[0-2])[-_.]?(0[1-9]|[12]\d|3[01])(?:\D|$)/.exec(name)
+  return m ? `${m[1]}-${m[2]}-${m[3]}` : ''
+}
+function filenameHint(it: CatalogItem): string {
+  const fromName = filenameDate(it.filename)
+  return fromName && fromName !== isoDate(effectiveDate(it)) ? fromName : ''
+}
+async function saveDate(it: CatalogItem, iso: string) {
+  if (iso === isoDate(it.date_override)) return
+  dateSaving.add(it.rel_path)
+  try {
+    await store.updateItem(it.rel_path, { date_override: iso })
+  } catch {
+    store.error = t('catalog.dateSaveFailed')
+  } finally {
+    dateSaving.delete(it.rel_path)
+  }
 }
 function fmtGps(it: CatalogItem): string {
   if (it.gps_lat == null || it.gps_lon == null) return '—'
@@ -189,7 +219,8 @@ async function openHistory(it: CatalogItem) {
 }
 const EVENT_KEYS = new Set([
   'description_created', 'description_edited', 'approved', 'marked_review', 'unapproved',
-  'hidden', 'shown', 'suggestion_changed', 'status_changed', 'rotation_changed', 'rotation_reset'
+  'hidden', 'shown', 'suggestion_changed', 'status_changed', 'rotation_changed', 'rotation_reset',
+  'date_changed', 'date_reset'
 ])
 
 // --- rotação manual (não destrutiva) ---
@@ -381,7 +412,24 @@ function fmtTs(ts: unknown): string {
             </td>
             <td class="max-w-[180px] truncate p-2 font-mono text-xs" :title="it.rel_path">{{ it.filename }}</td>
             <td class="p-2 text-xs">{{ it.media_type === 'video' ? t('catalog.type.video') : t('catalog.type.photo') }}</td>
-            <td class="p-2 text-xs">{{ fmtDate(it.capture_date) }}</td>
+            <td class="p-2 text-xs">
+              <div class="flex flex-col gap-1">
+                <div class="flex items-center gap-1">
+                  <input type="date" :value="isoDate(effectiveDate(it))" :disabled="dateSaving.has(it.rel_path)"
+                    :title="it.date_override ? t('catalog.dateOriginal', { date: fmtDate(it.capture_date) }) : t('catalog.dateEditTitle')"
+                    class="w-[8.5rem] rounded border px-1.5 py-1 text-xs dark:bg-gray-700 dark:text-white"
+                    :class="it.date_override ? 'border-amber-400 bg-amber-50 dark:border-amber-500/60 dark:bg-amber-500/10' : 'border-gray-300 bg-white dark:border-gray-600'"
+                    @change="saveDate(it, ($event.target as HTMLInputElement).value)" />
+                  <button v-if="it.date_override" type="button" class="rounded px-1 text-sm text-amber-600 hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-500/10"
+                    :title="t('catalog.dateReset', { date: fmtDate(it.capture_date) })" @click="saveDate(it, '')">↺</button>
+                </div>
+                <button v-if="filenameHint(it)" type="button"
+                  class="self-start rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-600 hover:bg-indigo-100 hover:text-indigo-700 dark:bg-gray-700 dark:text-gray-300"
+                  :title="t('catalog.dateFromNameTitle')" @click="saveDate(it, filenameHint(it))">
+                  {{ t('catalog.dateFromName', { date: fmtDate(filenameHint(it)) }) }}
+                </button>
+              </div>
+            </td>
             <td class="p-2 text-xs">{{ fmtGps(it) }}</td>
             <td class="max-w-[140px] p-2 text-xs">
               <span v-if="it.suggestion" class="text-gray-700 dark:text-gray-300">{{ it.suggestion }}</span>

@@ -60,6 +60,12 @@
     "errorDetails": "Erros"
   },
   "catalog": {
+    "dateSaveFailed": "Não foi possível salvar a data.",
+    "dateOriginal": "Data corrigida. Original: {date}",
+    "dateEditTitle": "Clique para corrigir a data",
+    "dateReset": "Voltar para a data original ({date})",
+    "dateFromName": "usar {date} (do nome)",
+    "dateFromNameTitle": "Usar a data que está no nome do arquivo (ex.: fotos do WhatsApp)",
     "title": "Catálogo de Memórias",
     "description": "Organize, identifique, aprove e controle suas fotos e vídeos.",
     "rescan": "Reanalisar biblioteca",
@@ -88,6 +94,7 @@
       "with_suggestion": "Com sugestão", "no_info": "Sem informação", "hidden": "Ocultas"
     },
     "filters": {
+      "date_edited": "Data corrigida",
       "all": "Todos", "pending": "Pendentes", "approved": "Aprovados",
       "auto_location": "Localidade automática", "with_suggestion": "Com sugestão",
       "no_info": "Sem informação", "review": "Revisar", "hidden": "Ocultos",
@@ -122,6 +129,8 @@
       "empty": "Nenhum evento registrado para esta mídia."
     },
     "events": {
+      "date_changed": "Data corrigida",
+      "date_reset": "Data original restaurada",
       "description_created": "Descrição criada", "description_edited": "Descrição alterada",
       "approved": "Aprovada", "marked_review": "Marcada p/ revisão",
       "unapproved": "Aprovação retirada", "hidden": "Ocultada", "shown": "Reexibida",
@@ -284,6 +293,66 @@
   "appearance": {
     "title": "Aparência",
     "description": "Sobreposições visuais, tempo dos slides e pareamento retrato.",
+    "hud": {
+      "title": "Textos na HDMI",
+      "subtitle": "Um estilo só para todos os textos; cada elemento tem tamanho e posição próprios. Aplica ao vivo, sem reiniciar.",
+      "saveFailed": "Não foi possível salvar.",
+      "styleTitle": "Estilo (vale para todos os textos)",
+      "font": "Fonte",
+      "fonts": {
+        "noto": "Noto Sans",
+        "noto_bold": "Noto Sans Negrito",
+        "dejavu": "DejaVu Sans",
+        "dejavu_bold": "DejaVu Sans Negrito"
+      },
+      "color": "Cor",
+      "opacity": "Opacidade",
+      "bgColor": "Cor da faixa de fundo",
+      "bgOpacity": "Faixa de fundo",
+      "none": "sem faixa",
+      "elementsTitle": "Elementos",
+      "element": "Elemento",
+      "size": "Tamanho",
+      "position": "Posição",
+      "format": "Formato",
+      "elements": {
+        "clock": "Relógio",
+        "today_date": "Data de hoje",
+        "weather": "Previsão do tempo",
+        "description": "Descrição aprovada",
+        "location": "Local (GPS)",
+        "photo_date": "Data da foto"
+      },
+      "perPhoto": "muda com cada foto",
+      "always": "sempre na tela",
+      "anchors": {
+        "TL": "Topo · esquerda",
+        "TC": "Topo · centro",
+        "TR": "Topo · direita",
+        "BL": "Baixo · esquerda",
+        "BC": "Baixo · centro",
+        "BR": "Baixo · direita"
+      },
+      "formatHelp": "Formatos: %H:%M = 18:25 · %d/%m/%Y = 20/11/2026 · %a = sex · %A = sexta-feira · %b = nov · %B = novembro. Elementos na mesma posição ficam empilhados.",
+      "locationHint": "O local vem do GPS das fotos. Ligue \"Localização por GPS\" no menu Fotos e rode \"Reescanear\" para preencher os locais.",
+      "showOnVideo": "Mostrar textos da foto também nos vídeos",
+      "showOnVideoHelp": "Desligado: em vídeos aparecem só relógio, data de hoje e clima.",
+      "weather": {
+        "title": "Local da previsão do tempo",
+        "help": "O Raspberry não tem GPS e a localização pela internet é aproximada (costuma cair na cidade do provedor), então escolha a cidade aqui. Dados: Open-Meteo, sem chave; só as coordenadas da cidade são enviadas.",
+        "placeholder": "Buscar cidade (ex.: Salvador)",
+        "search": "Buscar",
+        "searching": "Buscando…",
+        "noResults": "Nenhuma cidade encontrada.",
+        "searchFailed": "A busca falhou. O Raspberry está com internet?",
+        "noData": "Sem leitura do tempo ainda.",
+        "noPlace": "Nenhuma cidade escolhida",
+        "refresh": "Atualizar",
+        "needPlace": "Escolha uma cidade para a previsão aparecer na HDMI."
+      },
+      "preview": "Prévia",
+      "previewHelp": "Prévia aproximada da tela (1920×1080) com textos de exemplo."
+    },
     "hdmi": {
       "title": "Aparência dos textos na HDMI",
       "subtitle": "Descrição e data (canto inferior esquerdo) e relógio (canto inferior direito). Aplica ao vivo, sem reiniciar.",

@@ -63,7 +63,7 @@ const sectionClasses = computed(() => {
       :id="panelId"
       role="region"
       :aria-labelledby="buttonId"
-      class="space-y-5 border-t border-gray-100 p-4 dark:border-gray-700 sm:p-5"
+      class="space-y-1 border-t border-gray-100 p-4 dark:border-gray-700 sm:px-5 sm:py-4"
     >
       <slot />
     </div>

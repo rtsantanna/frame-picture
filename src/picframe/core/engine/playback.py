@@ -620,6 +620,7 @@ class PlaybackEngine:
             config.shader_path,
             config.kenburns,
             config.show_clock,
+            repr(getattr(config, "hud", None)),
             config.clock_format,
             config.clock_justify,
             config.clock_text_sz,

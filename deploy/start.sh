@@ -17,6 +17,18 @@ if [ ! -f "$PICFRAME_DIR/data/config.db3" ]; then
   picframe init --force --dir "$PICFRAME_DIR" || picframe init --force "$PICFRAME_DIR" || true
 fi
 
+# 1b) painel web: o servidor serve $PICFRAME_DIR/html (volume persistente), que o
+# init so copia na primeira vez. Sempre repoe o build que veio na imagem, senao
+# uma imagem nova continua servindo o painel antigo.
+PKG_HTML="$(python3 -c 'import os, picframe; print(os.path.join(os.path.dirname(picframe.__file__), "html"))' 2>/dev/null || true)"
+if [ -n "$PKG_HTML" ] && [ -f "$PKG_HTML/index.html" ]; then
+  rm -rf "$PICFRAME_DIR/html.new"
+  cp -a "$PKG_HTML" "$PICFRAME_DIR/html.new"
+  rm -rf "$PICFRAME_DIR/html"
+  mv "$PICFRAME_DIR/html.new" "$PICFRAME_DIR/html"
+  echo "[start] painel web atualizado a partir de $PKG_HTML"
+fi
+
 # 2) aponta a biblioteca para /data/photos (chave model.pic_dir)
 python3 - "$PICFRAME_DIR" "$PIC_DIR" <<'PY' || echo "[start] aviso: nao foi possivel setar pic_dir programaticamente"
 import sys, os
