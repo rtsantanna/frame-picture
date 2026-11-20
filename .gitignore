@@ -149,3 +149,6 @@ dmypy.json
 .Codexrules
 .cline
 .clinerules
+
+# HarnessKit local session logs
+.harnesskit/

@@ -1,0 +1,5 @@
+[Unit]
+Description=Frame Picture resolve Dropbox divergence (update local copy)
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /data/frame-picture/resolve_divergence.py

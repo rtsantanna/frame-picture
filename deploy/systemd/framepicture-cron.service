@@ -1,0 +1,5 @@
+[Unit]
+Description=Frame Picture apply Dropbox-sync crontab from panel
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /data/frame-picture/cron_apply.py
