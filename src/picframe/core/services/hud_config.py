@@ -70,7 +70,15 @@ def default_hud() -> dict[str, Any]:
             "today_date": "%d/%m/%Y",
             "photo_date": "%d/%m/%Y",
         },
-        "weather": {"lat": None, "lon": None, "place": ""},
+        "weather": {
+            "lat": None,
+            "lon": None,
+            "place": "",
+            "icon_style": "color",  # color | mono
+            "max_color": "#ef4444",
+            "min_color": "#3b82f6",
+            "opacity": None,  # None = follow the shared style opacity
+        },
         "margin_pct": 3.0,
         "lang": "pt",
     }
@@ -188,6 +196,17 @@ def normalize_hud(raw: Any, base: dict[str, Any] | None = None) -> dict[str, Any
                 cur["lon"] = round(_clamp(lon, -180.0, 180.0, 0.0), 4)
         if isinstance(weather.get("place"), str):
             cur["place"] = weather["place"].strip()[:120]
+        if weather.get("icon_style") in ("color", "mono"):
+            cur["icon_style"] = weather["icon_style"]
+        for key in ("max_color", "min_color"):
+            value = weather.get(key)
+            if isinstance(value, str) and _HEX.match(value.strip()):
+                cur[key] = value.strip().lower()
+        if "opacity" in weather:
+            cur["opacity"] = (
+                None if weather["opacity"] in (None, "")
+                else _clamp(weather["opacity"], 0.1, 1.0, 1.0)
+            )
 
     if "margin_pct" in raw:
         hud["margin_pct"] = _clamp(raw["margin_pct"], 0.0, 20.0, hud["margin_pct"])

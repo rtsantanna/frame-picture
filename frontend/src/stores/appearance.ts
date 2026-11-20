@@ -27,7 +27,16 @@ export interface Hud {
   style: { font: HudFont; color: string; opacity: number; bg_color: string; bg_opacity: number }
   elements: Record<HudElementName, HudElement>
   formats: { clock: string; today_date: string; photo_date: string }
-  weather: { lat: number | null; lon: number | null; place: string }
+  weather: {
+    lat: number | null
+    lon: number | null
+    place: string
+    icon_style: 'color' | 'mono'
+    max_color: string
+    min_color: string
+    /** null = follow the shared style opacity */
+    opacity: number | null
+  }
   margin_pct: number
   lang: 'pt' | 'en'
 }
@@ -53,6 +62,7 @@ export interface WeatherReading {
   tmax: number | null
   tmin: number | null
   icon: string
+  kind?: string
   code: number | null
   fetched_at: number
 }
@@ -85,7 +95,15 @@ const DEFAULT_HUD: Hud = {
     weather: { enabled: false, size: 48, position: 'TR' }
   },
   formats: { clock: '%H:%M', today_date: '%d/%m/%Y', photo_date: '%d/%m/%Y' },
-  weather: { lat: null, lon: null, place: '' },
+  weather: {
+    lat: null,
+    lon: null,
+    place: '',
+    icon_style: 'color',
+    max_color: '#ef4444',
+    min_color: '#3b82f6',
+    opacity: null
+  },
   margin_pct: 3,
   lang: 'pt'
 }
@@ -138,6 +156,10 @@ export const useAppearanceStore = defineStore('appearance', () => {
     return data.results || []
   }
 
+  function iconUrl(kind: string, size = 64): string {
+    return `${api.defaults.baseURL}/weather/icon/${encodeURIComponent(kind)}.png?size=${size}`
+  }
+
   async function fetchWeather(refresh = false): Promise<{
     place: string
     data: WeatherReading | null
@@ -147,5 +169,5 @@ export const useAppearanceStore = defineStore('appearance', () => {
     return data
   }
 
-  return { state, error, saving, fetch, save, searchPlaces, fetchWeather }
+  return { state, error, saving, fetch, save, searchPlaces, fetchWeather, iconUrl }
 })

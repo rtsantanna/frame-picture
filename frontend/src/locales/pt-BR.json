@@ -348,7 +348,14 @@
         "noData": "Sem leitura do tempo ainda.",
         "noPlace": "Nenhuma cidade escolhida",
         "refresh": "Atualizar",
-        "needPlace": "Escolha uma cidade para a previsão aparecer na HDMI."
+        "needPlace": "Escolha uma cidade para a previsão aparecer na HDMI.",
+        "iconStyle": "Ícone",
+        "iconColor": "Colorido",
+        "iconMono": "Monocromático (cor do estilo)",
+        "maxColor": "Cor da seta de máxima",
+        "minColor": "Cor da seta de mínima",
+        "opacity": "Opacidade do clima",
+        "followStyle": "igual ao estilo"
       },
       "preview": "Prévia",
       "previewHelp": "Prévia aproximada da tela (1920×1080) com textos de exemplo."
@@ -518,6 +525,10 @@
     "pending": "{count} pendentes enquanto pausado"
   },
   "settings": {
+    "simple": {
+      "httpTab": "Acesso e senha",
+      "showAdvanced": "Mostrar opções avançadas"
+    },
     "title": "Configuração",
     "save": "Salvar alterações",
     "saving": "Salvando...",

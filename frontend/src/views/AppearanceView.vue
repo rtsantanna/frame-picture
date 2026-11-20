@@ -9,7 +9,6 @@ import { useAppearanceStore, type OverlayAppearance } from '../stores/appearance
 import HudSettingsPanel from '../components/HudSettingsPanel.vue'
 import OverlayAppearanceSection from '../components/OverlayAppearanceSection.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
-import FieldRow from '../components/settings/FieldRow.vue'
 import NumberField from '../components/settings/NumberField.vue'
 import ToggleSwitch from '../components/settings/ToggleSwitch.vue'
 import PageHeader from '../components/ui/PageHeader.vue'
@@ -201,21 +200,24 @@ async function saveHdmi(patch: Partial<Omit<OverlayAppearance, 'hud'>>) {
           </p>
         </div>
 
-        <div class="space-y-5">
-          <FieldRow :label="t('appearance.timeDelay.label')" :help="t('appearance.timeDelay.help')">
+        <div class="grid grid-cols-1 gap-5 sm:grid-cols-3">
+          <div class="space-y-1.5">
+            <div class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('appearance.timeDelay.label') }}</div>
             <NumberField v-model="appearance.time_delay" :min="1" :step="1" unit="s" />
-          </FieldRow>
-
-          <FieldRow :label="t('appearance.fadeTime.label')" :help="t('appearance.fadeTime.help')">
+            <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('appearance.timeDelay.help') }}</p>
+          </div>
+          <div class="space-y-1.5">
+            <div class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('appearance.fadeTime.label') }}</div>
             <NumberField v-model="appearance.fade_time" :min="0" :step="0.5" unit="s" />
-          </FieldRow>
-
-          <FieldRow
-            :label="t('appearance.portraitPairs.label')"
-            :help="t('appearance.portraitPairs.help')"
-          >
-            <ToggleSwitch v-model="appearance.portrait_pairs" />
-          </FieldRow>
+            <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('appearance.fadeTime.help') }}</p>
+          </div>
+          <div class="space-y-1.5">
+            <div class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('appearance.portraitPairs.label') }}</div>
+            <div class="flex h-10 items-center">
+              <ToggleSwitch v-model="appearance.portrait_pairs" :label="t('appearance.portraitPairs.label')" />
+            </div>
+            <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('appearance.portraitPairs.help') }}</p>
+          </div>
         </div>
 
         <div

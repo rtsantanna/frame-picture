@@ -98,6 +98,33 @@ def test_legacy_switches_stay_authoritative_for_on_off() -> None:
     assert not hud["elements"]["description"]["enabled"]
 
 
+def test_weather_options_normalize() -> None:
+    hud = normalize_hud(
+        {"weather": {"icon_style": "mono", "max_color": "#FF0000", "min_color": "blue", "opacity": 0.05}}
+    )
+    assert hud["weather"]["icon_style"] == "mono"
+    assert hud["weather"]["max_color"] == "#ff0000"
+    assert hud["weather"]["min_color"] == default_hud()["weather"]["min_color"]
+    assert hud["weather"]["opacity"] == 0.1
+    assert normalize_hud({"weather": {"opacity": None}})["weather"]["opacity"] is None
+    # Older stored layouts (only lat/lon/place) get the new defaults.
+    old = normalize_hud({"weather": {"lat": 1, "lon": 2, "place": "X"}})
+    assert old["weather"]["icon_style"] == "color" and old["weather"]["max_color"] == "#ef4444"
+
+
+def test_weather_icons_render_every_kind() -> None:
+    from picframe.core.renderers.components.weather_icons import KINDS, icon_png, kind_for, render_icon
+
+    for kind in KINDS:
+        image = render_icon(kind, 48)
+        assert image.size == (48, 48) and image.mode == "RGBA"
+        assert image.getchannel("A").getbbox() is not None  # something was drawn
+    assert icon_png("rain", 32).startswith(b"\x89PNG")
+    assert kind_for(0, True) == "clear_day" and kind_for(0, False) == "clear_night"
+    assert kind_for(2, True) == "partly_day" and kind_for(63, True) == "rain"
+    assert kind_for(95, True) == "storm" and kind_for(None) == "cloudy"
+
+
 def test_format_dt_uses_portuguese_names() -> None:
     dt = datetime(2026, 11, 20, 18, 5)
     assert format_dt(dt, "%a, %d %b", "pt") == "sex, 20 nov"

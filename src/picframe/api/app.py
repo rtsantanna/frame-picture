@@ -1788,7 +1788,7 @@ def create_app(
         year: int | None = Query(default=None),
         sort: str = Query(default="date_desc"),
         page: int = Query(default=1, ge=1),
-        per_page: int = Query(default=25, ge=1, le=100),
+        per_page: int = Query(default=25, ge=1, le=5000),
     ) -> dict[str, Any]:
         svc = _require_catalog()
         result = svc.list(
@@ -2273,6 +2273,16 @@ def create_app(
         except Exception as exc:
             raise HTTPException(status_code=502, detail=f"Busca indisponível: {exc}") from exc
         return {"results": results}
+
+    @app.get("/api/weather/icon/{kind}.png", tags=["Overlay"], summary="Colour weather icon")
+    async def api_weather_icon(kind: str, size: int = Query(64, ge=16, le=256)) -> Response:
+        from picframe.core.renderers.components.weather_icons import KINDS, icon_png
+
+        if kind not in KINDS:
+            raise HTTPException(status_code=404, detail="Unknown icon")
+        png = await asyncio.to_thread(icon_png, kind, size)
+        return Response(png, media_type="image/png",
+                        headers={"Cache-Control": "public, max-age=86400"})
 
     @app.get("/api/weather/current", tags=["Overlay"], summary="Weather reading used by the HDMI")
     async def api_weather_current(refresh: bool = False) -> dict[str, Any]:

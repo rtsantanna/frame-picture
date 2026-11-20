@@ -348,7 +348,14 @@
         "noData": "No weather reading yet.",
         "noPlace": "No city selected",
         "refresh": "Refresh",
-        "needPlace": "Pick a city so the weather shows on the HDMI."
+        "needPlace": "Pick a city so the weather shows on the HDMI.",
+        "iconStyle": "Icon",
+        "iconColor": "Colour",
+        "iconMono": "Monochrome (style colour)",
+        "maxColor": "Max arrow colour",
+        "minColor": "Min arrow colour",
+        "opacity": "Weather opacity",
+        "followStyle": "same as style"
       },
       "preview": "Preview",
       "previewHelp": "Approximate screen preview (1920×1080) with sample texts."
@@ -518,6 +525,10 @@
     "pending": "{count} pending while paused"
   },
   "settings": {
+    "simple": {
+      "httpTab": "Access & password",
+      "showAdvanced": "Show advanced options"
+    },
     "title": "Configuration",
     "save": "Save Changes",
     "saving": "Saving...",

@@ -91,6 +91,36 @@ const tabs = [
   { id: 'touch_overlay', labelKey: 'settings.touchOverlay.tab' }
 ]
 
+// Simple mode (default): only the media library (Modelo) and the panel
+// password. Everything else stays one switch away, never removed.
+const SIMPLE_TABS = ['model', 'http']
+const ADVANCED_KEY = 'fp.settings.advanced'
+function readAdvanced(): boolean {
+  try {
+    return localStorage.getItem(ADVANCED_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+const showAdvanced = ref(readAdvanced())
+if (!showAdvanced.value) activeTab.value = 'model'
+const visibleTabs = computed(() =>
+  showAdvanced.value ? tabs : tabs.filter(tab => SIMPLE_TABS.includes(tab.id))
+)
+function tabLabel(tab: { id: string; labelKey: string }): string {
+  if (!showAdvanced.value && tab.id === 'http') return t('settings.simple.httpTab')
+  return t(tab.labelKey, formatLabel(tab.id))
+}
+function setAdvanced(value: boolean) {
+  showAdvanced.value = value
+  try {
+    localStorage.setItem(ADVANCED_KEY, value ? '1' : '0')
+  } catch {
+    /* private mode: the choice just isn't remembered */
+  }
+  if (!value && !SIMPLE_TABS.includes(activeTab.value)) activeTab.value = 'model'
+}
+
 const matStyleOptions = [
   'float',
   'float_polaroid',
@@ -736,7 +766,7 @@ function setBackgroundColor(event: Event) {
           class="h-fit rounded-lg border border-gray-200 bg-white p-2 shadow-sm dark:border-gray-700 dark:bg-gray-800/90 lg:sticky lg:top-6"
         >
           <button
-            v-for="tab in tabs"
+            v-for="tab in visibleTabs"
             :key="tab.id"
             type="button"
             :class="[
@@ -747,10 +777,11 @@ function setBackgroundColor(event: Event) {
             ]"
             @click="activeTab = tab.id"
           >
-            {{ t(tab.labelKey, formatLabel(tab.id)) }}
+            {{ tabLabel(tab) }}
           </button>
           <div class="my-2 border-t border-gray-200 dark:border-gray-700"></div>
           <button
+            v-if="showAdvanced"
             type="button"
             :class="[
               activeTab === 'danger'
@@ -762,6 +793,14 @@ function setBackgroundColor(event: Event) {
           >
             {{ t('settings.dangerZone') }}
           </button>
+          <div class="flex items-center justify-between gap-3 px-4 py-3">
+            <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('settings.simple.showAdvanced') }}</span>
+            <ToggleSwitch
+              :model-value="showAdvanced"
+              :label="t('settings.simple.showAdvanced')"
+              @update:model-value="setAdvanced"
+            />
+          </div>
         </nav>
 
         <main
@@ -1583,7 +1622,7 @@ function setBackgroundColor(event: Event) {
             <h2
               class="border-b border-gray-100 pb-4 text-2xl font-bold text-gray-900 dark:border-gray-700 dark:text-white"
             >
-              {{ t('config.http._title') }}
+              {{ showAdvanced ? t('config.http._title') : t('settings.simple.httpTab') }}
             </h2>
             <SettingsSection
               id="settings-http-access"
@@ -1639,6 +1678,7 @@ function setBackgroundColor(event: Event) {
               </template>
             </SettingsSection>
             <SettingsSection
+              v-if="showAdvanced"
               id="settings-http-browser-api"
               :title="t('settings.domain.httpBrowserApi')"
               :description="t('settings.domain.httpBrowserApiDescription')"
@@ -1654,6 +1694,7 @@ function setBackgroundColor(event: Event) {
               </FieldRow>
             </SettingsSection>
             <SettingsSection
+              v-if="showAdvanced"
               id="settings-http-realtime"
               :title="t('settings.domain.httpRealtime')"
               :description="t('settings.domain.httpRealtimeDescription')"

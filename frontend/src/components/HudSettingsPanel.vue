@@ -87,7 +87,7 @@ async function search() {
 async function choosePlace(place: PlaceResult) {
   results.value = []
   query.value = ''
-  draft.weather = { lat: place.lat, lon: place.lon, place: place.label }
+  Object.assign(draft.weather, { lat: place.lat, lon: place.lon, place: place.label })
   await save({ weather: { lat: place.lat, lon: place.lon, place: place.label } })
   await refreshWeather(true)
 }
@@ -109,6 +109,14 @@ async function refreshWeather(force = false) {
 
 const fmtTemp = (v: number | null | undefined) => (v == null ? '--°' : `${Math.round(v)}°`)
 
+function setWeather(patch: Partial<Hud['weather']>) {
+  Object.assign(draft.weather, patch)
+  void save({ weather: patch })
+}
+const followStyleOpacity = computed(() => draft.weather.opacity == null)
+const weatherOpacity = computed(() => draft.weather.opacity ?? draft.style.opacity)
+const previewKind = computed(() => reading.value?.kind || 'partly_day')
+
 // --- preview ---
 const PREVIEW_H = 1080
 const SAMPLE: Record<HudElementName, string[]> = {
@@ -122,7 +130,8 @@ const SAMPLE: Record<HudElementName, string[]> = {
 const STACK: HudElementName[] = ['weather', 'clock', 'today_date', 'description', 'location', 'photo_date']
 
 const previewStacks = computed(() => {
-  const stacks: Record<HudAnchor, Array<{ key: string; text: string; size: number }>> = {
+  type PreviewLine = { key: string; text: string; size: number; el: HudElementName; i: number }
+  const stacks: Record<HudAnchor, PreviewLine[]> = {
     TL: [], TC: [], TR: [], BL: [], BC: [], BR: []
   }
   for (const name of STACK) {
@@ -130,7 +139,7 @@ const previewStacks = computed(() => {
     if (!el.enabled) continue
     SAMPLE[name].forEach((text, i) => {
       const size = name === 'weather' && i === 1 ? Math.max(12, el.size * 0.6) : el.size
-      stacks[el.position].push({ key: `${name}-${i}`, text, size })
+      stacks[el.position].push({ key: `${name}-${i}`, text, size, el: name, i })
     })
   }
   return stacks
@@ -298,8 +307,12 @@ onMounted(async () => {
             <MapPinIcon class="h-4 w-4 text-gray-400" />
             <span v-if="draft.weather.place" class="font-medium text-gray-900 dark:text-white">{{ draft.weather.place }}</span>
             <span v-else class="text-gray-500">{{ t('appearance.hud.weather.noPlace') }}</span>
-            <span v-if="reading" class="text-gray-700 dark:text-gray-200">
-              {{ reading.icon }} {{ fmtTemp(reading.temp) }} · ↑{{ fmtTemp(reading.tmax) }} ↓{{ fmtTemp(reading.tmin) }}
+            <span v-if="reading" class="inline-flex items-center gap-1.5 text-gray-700 dark:text-gray-200">
+              <img v-if="reading.kind" :src="store.iconUrl(reading.kind, 48)" alt="" class="h-6 w-6" />
+              <span v-else>{{ reading.icon }}</span>
+              {{ fmtTemp(reading.temp) }}
+              <span :style="{ color: draft.weather.max_color }">↑</span>{{ fmtTemp(reading.tmax) }}
+              <span :style="{ color: draft.weather.min_color }">↓</span>{{ fmtTemp(reading.tmin) }}
             </span>
             <span v-else-if="weatherError && draft.weather.place" class="text-xs text-amber-600 dark:text-amber-400">{{ weatherError }}</span>
             <button v-if="draft.weather.place" type="button" class="ml-auto inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:underline dark:text-indigo-400"
@@ -310,6 +323,38 @@ onMounted(async () => {
           <p v-if="draft.elements.weather.enabled && !draft.weather.place" class="mt-2 text-xs text-amber-700 dark:text-amber-400">
             {{ t('appearance.hud.weather.needPlace') }}
           </p>
+
+          <div class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <label class="hud-field">
+              <span>{{ t('appearance.hud.weather.iconStyle') }}</span>
+              <select :value="draft.weather.icon_style" class="hud-input"
+                @change="setWeather({ icon_style: ($event.target as HTMLSelectElement).value as 'color' | 'mono' })">
+                <option value="color">{{ t('appearance.hud.weather.iconColor') }}</option>
+                <option value="mono">{{ t('appearance.hud.weather.iconMono') }}</option>
+              </select>
+            </label>
+            <label class="hud-field">
+              <span>{{ t('appearance.hud.weather.maxColor') }}</span>
+              <input v-model="draft.weather.max_color" type="color" class="hud-color"
+                @change="setWeather({ max_color: draft.weather.max_color })" />
+            </label>
+            <label class="hud-field">
+              <span>{{ t('appearance.hud.weather.minColor') }}</span>
+              <input v-model="draft.weather.min_color" type="color" class="hud-color"
+                @change="setWeather({ min_color: draft.weather.min_color })" />
+            </label>
+            <div class="hud-field">
+              <span>{{ t('appearance.hud.weather.opacity') }} · {{ Math.round(weatherOpacity * 100) }}%</span>
+              <label class="flex items-center gap-1.5 text-[11px] font-normal">
+                <input type="checkbox" :checked="followStyleOpacity"
+                  @change="setWeather({ opacity: ($event.target as HTMLInputElement).checked ? null : draft.style.opacity })" />
+                {{ t('appearance.hud.weather.followStyle') }}
+              </label>
+              <input type="range" min="0.1" max="1" step="0.05" :value="weatherOpacity" :disabled="followStyleOpacity"
+                class="w-full accent-indigo-600 disabled:opacity-40"
+                @change="setWeather({ opacity: Number(($event.target as HTMLInputElement).value) })" />
+            </div>
+          </div>
         </section>
       </div>
 
@@ -323,7 +368,22 @@ onMounted(async () => {
           <div v-for="a in HUD_ANCHORS" :key="a" class="absolute flex flex-col"
             :class="anchorClass(a)" :style="{ padding: `${draft.margin_pct * 0.5625}cqw ${draft.margin_pct}cqw` }">
             <span v-for="line in previewStacks[a]" :key="line.key" class="whitespace-nowrap leading-tight"
-              :style="{ ...previewStyle, fontSize: `${(line.size / PREVIEW_H) * 56.25}cqw`, textShadow: '0 0 3px #000' }">{{ line.text }}</span>
+              :style="{
+                ...previewStyle,
+                ...(line.el === 'weather' ? { opacity: String(Math.max(0.15, weatherOpacity)) } : {}),
+                fontSize: `${(line.size / PREVIEW_H) * 56.25}cqw`,
+                textShadow: '0 0 3px #000'
+              }">
+              <template v-if="line.el === 'weather' && line.i === 0">
+                <img v-if="draft.weather.icon_style === 'color'" :src="store.iconUrl(previewKind, 96)" alt=""
+                  class="mr-[0.15em] inline-block h-[1.35em] w-[1.35em] align-middle" />
+                <span v-else>☁ </span>27°
+              </template>
+              <template v-else-if="line.el === 'weather' && line.i === 1">
+                <span :style="{ color: draft.weather.max_color }">↑</span>31°&nbsp;&nbsp;<span :style="{ color: draft.weather.min_color }">↓</span>19°
+              </template>
+              <template v-else>{{ line.text }}</template>
+            </span>
           </div>
         </div>
         <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">{{ t('appearance.hud.previewHelp') }}</p>

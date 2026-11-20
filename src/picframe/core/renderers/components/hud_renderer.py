@@ -39,9 +39,26 @@ from picframe.core.services.weather_service import WeatherService, format_temp
 DEJAVU = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 SHADOW_RADIUS = 3
 
-# A line is a tuple of segments; a segment is (text, font_path).
-Segment = tuple[str, str]
+# A line is a tuple of segments; a segment is (text, font_path, colour, opacity).
+# colour None = the shared style colour; opacity None = the shared style opacity.
+# A text starting with ICON_PREFIX is a colour weather icon (kind after the prefix).
+ICON_PREFIX = "\x00icon:"
+Segment = tuple[str, str, str | None, float | None]
 Line = tuple[Segment, ...]
+
+
+class _Block:
+    """One drawable piece of a line: a FixedString or an icon sprite."""
+
+    __slots__ = ("sprite", "width", "height", "sprite_w", "holder")
+
+    def __init__(self, sprite: Any, width: float, height: float, holder: Any = None,
+                 sprite_w: float | None = None) -> None:
+        self.sprite = sprite
+        self.width = width  # horizontal space taken in the line (may include a gap)
+        self.height = height
+        self.sprite_w = width if sprite_w is None else sprite_w  # drawn width
+        self.holder = holder  # keeps the FixedString/texture alive
 
 
 class _BuiltLine:
@@ -129,6 +146,7 @@ class HudRenderer:
             if data:
                 out["weather"] = (
                     data.get("icon") or "",
+                    data.get("kind") or "",
                     format_temp(data.get("temp")),
                     format_temp(data.get("tmax")),
                     format_temp(data.get("tmin")),
@@ -156,20 +174,29 @@ class HudRenderer:
             reading = live.get("weather")
             if not reading:
                 return []
-            icon, temp, tmax, tmin = reading
+            glyph, kind, temp, tmax, tmin = reading
+            cfg = self._hud.get("weather") or {}
+            opacity = cfg.get("opacity")  # None = follow the shared style
             first: list[Segment] = []
-            if icon:
-                first.append((icon + " ", DEJAVU))
-            first.append((temp, font))
-            second: Line = (("↑", DEJAVU), (f"{tmax}  ", font), ("↓", DEJAVU), (tmin, font))
+            if cfg.get("icon_style", "color") == "color" and kind:
+                first.append((ICON_PREFIX + kind, "", None, opacity))
+            elif glyph:
+                first.append((glyph + " ", DEJAVU, None, opacity))
+            first.append((temp, font, None, opacity))
+            second: Line = (
+                ("↑", DEJAVU, cfg.get("max_color") or "#ef4444", opacity),
+                (f"{tmax}  ", font, None, opacity),
+                ("↓", DEJAVU, cfg.get("min_color") or "#3b82f6", opacity),
+                (tmin, font, None, opacity),
+            )
             return [tuple(first), second]
         if name in LIVE_ELEMENTS:
             text = live.get(name)
-            return [((text, font),)] if text else []
+            return [((text, font, None, None),)] if text else []
         if not self._photo_visible:
             return []
         text = " ".join(str(self._photo_fields.get(name) or "").split())
-        return [((text, font),)] if text else []
+        return [((text, font, None, None),)] if text else []
 
     def _render_bounds(self) -> tuple[float, float, float, float]:
         """(center_x, center_y, width, height) in pi3d coordinates."""
@@ -180,31 +207,62 @@ class HudRenderer:
         center_y = int(self._display.height) / 2 - y - height / 2
         return center_x, center_y, float(width), float(height)
 
+    def _icon_block(self, kind: str, size: int, opacity: float) -> _Block | None:
+        """Colour weather icon as a textured sprite, sized like a text line."""
+        try:
+            from picframe.core.renderers.components.weather_icons import render_icon
+
+            px = max(12, int(size * 1.35))
+            image = render_icon(kind, px, round(opacity, 2))
+            texture = pi3d.Texture(np.array(image), blend=True, mipmap=False)
+            try:
+                camera = pi3d.Camera.instance()
+            except AttributeError:
+                camera = None
+            if camera is None:
+                camera = pi3d.Camera(is_3d=False)
+            sprite = pi3d.Sprite(camera=camera, w=px, h=px)
+            sprite.set_shader(self._shader)
+            sprite.set_textures([texture])
+            # a little breathing room before the temperature
+            return _Block(sprite, px + size * 0.15, px, holder=texture, sprite_w=px)
+        except Exception as exc:
+            self._logger.error("HUD: could not draw weather icon %r: %s", kind, exc)
+            return None
+
     def _build_line(self, line: Line, size: int, live: bool) -> _BuiltLine | None:
         style = self._hud["style"]
-        opacity = int(255 * max(0.0, min(1.0, float(style.get("opacity", 1.0)))))
-        color = (*hex_rgb(style.get("color", "#f8fafc")), opacity)
-        blocks: list[Any] = []
+        style_opacity = max(0.0, min(1.0, float(style.get("opacity", 1.0))))
+        blocks: list[_Block] = []
         width = height = 0.0
-        for text, font in line:
+        for text, font, colour, seg_opacity in line:
             if not text:
                 continue
-            try:
-                block = pi3d.FixedString(
-                    font,
-                    text,
-                    font_size=int(size),
-                    shadow_radius=SHADOW_RADIUS,
-                    shader=self._shader,
-                    justify="L",
-                    color=color,
-                )
-            except Exception as exc:
-                self._logger.error("HUD: could not render %r: %s", text, exc)
-                continue
+            opacity = style_opacity if seg_opacity is None else float(seg_opacity)
+            if text.startswith(ICON_PREFIX):
+                block = self._icon_block(text[len(ICON_PREFIX):], size, opacity)
+                if block is None:
+                    continue
+            else:
+                rgba = (*hex_rgb(colour or style.get("color", "#f8fafc")), int(255 * opacity))
+                try:
+                    fixed = pi3d.FixedString(
+                        font,
+                        text,
+                        font_size=int(size),
+                        shadow_radius=SHADOW_RADIUS,
+                        shader=self._shader,
+                        justify="L",
+                        color=rgba,
+                    )
+                except Exception as exc:
+                    self._logger.error("HUD: could not render %r: %s", text, exc)
+                    continue
+                block = _Block(fixed.sprite, float(fixed.sprite.width),
+                               float(fixed.sprite.height), holder=fixed)
             blocks.append(block)
-            width += float(block.sprite.width)
-            height = max(height, float(block.sprite.height))
+            width += block.width
+            height = max(height, block.height)
         if not blocks:
             return None
         return _BuiltLine(blocks, width, height, live)
@@ -250,9 +308,8 @@ class HudRenderer:
                 else:
                     left = center_x - line.width / 2
                 for block in line.blocks:
-                    block_w = float(block.sprite.width)
-                    block.sprite.position(left + block_w / 2, y, 0.1)
-                    left += block_w
+                    block.sprite.position(left + block.sprite_w / 2, y, 0.1)
+                    left += block.width
                 self._built.append((anchor, line))
             edge = edge_heights[vertical]
             edge[0] = max(edge[0], total + 2 * margin_y)

@@ -174,6 +174,8 @@ class WeatherService:
         def first(values: Any) -> Any:
             return values[0] if isinstance(values, list) and values else None
 
+        from picframe.core.renderers.components.weather_icons import kind_for
+
         code = current.get("weather_code")
         is_day = bool(current.get("is_day", 1))
         return {
@@ -181,6 +183,7 @@ class WeatherService:
             "code": code,
             "is_day": is_day,
             "icon": icon_for(code, is_day),
+            "kind": kind_for(code, is_day),
             "tmax": first(daily.get("temperature_2m_max")),
             "tmin": first(daily.get("temperature_2m_min")),
             "fetched_at": time.time(),
