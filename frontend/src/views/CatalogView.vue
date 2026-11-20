@@ -354,7 +354,7 @@ function fmtTs(ts: unknown): string {
           <option v-for="s in SORTS" :key="s" :value="s">{{ t('catalog.sorts.' + s) }}</option>
         </select>
         <select v-model.number="perPage" class="rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
-          <option v-for="n in [25, 50, 100, 500, 1000, 5000]" :key="n" :value="n">{{ n }}</option>
+          <option v-for="n in [25, 50, 100]" :key="n" :value="n">{{ n }}</option>
         </select>
       </div>
     </section>

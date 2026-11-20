@@ -1788,7 +1788,7 @@ def create_app(
         year: int | None = Query(default=None),
         sort: str = Query(default="date_desc"),
         page: int = Query(default=1, ge=1),
-        per_page: int = Query(default=25, ge=1, le=5000),
+        per_page: int = Query(default=25, ge=1, le=100),
     ) -> dict[str, Any]:
         svc = _require_catalog()
         result = svc.list(
