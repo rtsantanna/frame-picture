@@ -1,0 +1,1 @@
+function e(e,t){if(e instanceof Error)return e.message||t;if(e&&typeof e==`object`){let n=e.message;if(typeof n==`string`)return n||t}return t}function t(e,t){if(e&&typeof e==`object`){let t=e;if(t.response?.data?.detail)return t.response.data.detail;if(t.message)return t.message}return typeof e==`string`?e:t}export{e as n,t};
